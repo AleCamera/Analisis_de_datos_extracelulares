@@ -1,0 +1,17 @@
+function [meanRespIndex, errRespIndex] = calculateResponseIndex(nSpkPre, nSpkDuring)
+if length(nSpkPre) ~= length(nSpkDuring)
+    error('No hay el mismo numero de trials en la frecuencia pre y post')
+end
+%si no hay spikes 
+if nSpkDuring + nSpkPre == 0 || (isempty(nSpkPre) & isempty(nSpkDuring))
+    meanRespIndex = [];
+    errRespIndex = [];
+    return
+else
+    respIndex = zeros(length(nSpkPre));
+for trial = 1:length(nSpkPre)
+    respIndex(trial) = (nSpkDuring(trial) - nSpkPre(trial)) / (nSpkDuring(trial) + nSpkPre(trial));
+end
+    meanRespIndex = mean(respIndex);
+    errRespIndex = std(respIndex)/sqrt(length(nSpkPre));
+end

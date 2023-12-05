@@ -1,0 +1,24 @@
+
+newIndex = zeros(1,length(stims));
+count = 0;
+
+for stimCode = unique(stims)
+    %stimCodes toma los valores de cada TIPO de estimulo que haya
+    %presentado ordenados de codigo menor a mayor
+    for stimIndex = find(stims == stimCode)
+        %stimIndex toma el valor de cada indice para el codigo
+        %correspondiente
+        count = count +1;
+        newIndex(stimIndex) = count;
+    end
+    
+end
+%ahora tengo vector que me dice la posicion que tienen que tomar los
+%indices viejos
+
+correctedIndex = zeros(1, length(index));
+trial = 0;
+for ind = newIndex
+    trial = trial+1;
+    correctedIndex(index == ind) = trial;
+end

@@ -1,0 +1,8 @@
+
+stimCodes = unique(stims);
+
+for code = stimCodes
+    stimInd = find(stims == code);
+    for ind = stimInd
+        find(index == stimInd(ind))
+        
