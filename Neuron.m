@@ -228,7 +228,7 @@ classdef Neuron
         function [t_waves, waves] = getWaveforms(obj)
             %getWaveforms carga la waveform promedio del cluster.
             
-            assignin('base', 'obj', obj);
+            %assignin('base', 'obj', obj);
             
             %[FileName,~,~] = uigetfile('*.spkDAT.mat','Seleccione archivo *spkDAT.mat para usar');
             fullSegLen = 7; %ms

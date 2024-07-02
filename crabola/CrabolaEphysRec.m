@@ -255,7 +255,7 @@ classdef CrabolaEphysRec
             nBins = round((xlimit(2)-xlimit(1))*(1000/binSize));
             
             stimIND = obj.getStimIndex(stim, 'condition', condition);
-            assignin('base','stimIND',stimIND)
+            %assignin('base','stimIND',stimIND)
             [raster, index, stimList] = obj.neurons(cluster).getRasters(stim, 'durations', [-xlimit(1), xlimit(2)], 'stimIndex', stimIND);
 
             for i = unique(index)'
@@ -431,6 +431,7 @@ classdef CrabolaEphysRec
             %genro un vector con el numero de cluster
             clusterData = importdata(cluDataFile(1,:));
             nCluster = clusterData(2:end);
+            
             clear cluDataFile
             clear clusterData
             
