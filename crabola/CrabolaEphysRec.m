@@ -134,31 +134,64 @@ classdef CrabolaEphysRec
         
         function stimIND = getStimIndex(obj, stimCodes, varargin)
             condition = 'all';
+            screens = [];
+            usecode = 1;
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'condition'
                         if sum(strcmp({'all', 'ball', 'air'}, varargin{arg+1}))
-                            condition = varargin{arg+1};
+                             condition = varargin{arg+1};
                         else
                             error('invalid "condition", only "all", "ball" and "air" are permited')
                         end
+                    case 'screens'
+                        screens = varargin{arg+1};
+                    case 'nocodes'
+                        usecode = 0;
                 end
             end
             %find selected stims
-            stimIND = find(ismember([obj.stims.code], stimCodes));
-            if strcmp(condition, 'ball')
-                for n = flip(1:length(stimIND))
-                    if ~obj.stims(stimIND(n)).running
-                        stimIND(n) = [];
-                    end
-                end
-            elseif strcmp(condition, 'air')
-                for n = flip(1:length(stimIND))
-                    if obj.stims(stimIND(n)).running
-                        stimIND(n) = [];
-                    end
-                end
+            % This code filters of stims by all the posible criteria and
+            % makes boolean vectors as result.
+            % The result stimIND is the result of the AND operation over
+            % all the lists.
+            % The code makes a ones filed list for each codition as defualt
+            % until the filter is selected.
+            
+            % Filter by code
+            whereCodes = ones(1,length(obj.stims))
+            if usecode
+                whereCodes = ismember([obj.stims.code], stimCodes)
             end
+            
+            % Filter by runing codition
+            whereRuning = ones(1,length(obj.stims))
+            if strcmp(condition, 'ball')
+                whereRuning = ismember([obj.stims.running], 1)
+            elseif strcmp(condition, 'air')
+                whereRuning = ismember([obj.stims.running], 0)
+            end
+            
+            %Filter by screen
+            whereScreen = ones(1,length(obj.stims))
+            if ~isempty(screens)
+                whereScreen = ismember([obj.stims.code], screens)
+            end
+            stimIND = whereCodes&whereRuning&whereScreen;
+%             stimIND = find(ismember([obj.stims.code], stimCodes));
+%             if strcmp(condition, 'ball')
+%                 for n = flip(1:length(stimIND))
+%                     if ~obj.stims(stimIND(n)).running
+%                         stimIND(n) = [];
+%                     end
+%                 end
+%             elseif strcmp(condition, 'air')
+%                 for n = flip(1:length(stimIND))
+%                     if obj.stims(stimIND(n)).running
+%                         stimIND(n) = [];
+%                     end
+%                 end
+%             end
             
         end
         
