@@ -209,7 +209,8 @@ classdef Neuron
             [freq,~] = SyncHist(raster, index,'mode', 'mean' ,'durations',...
                                 bounds, 'nBins', nBins);
             freq = smooth(freq, span, method);
-            t = (bounds(1):(bounds(2) - bounds(1))/(nBins-1):bounds(2))';
+            t = (bounds(1):(bounds(2) - bounds(1))/(nBins):bounds(2))';
+            t = t(2:end);
         end
         
         function screens = getScreens(obj, stimCode)
