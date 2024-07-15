@@ -159,25 +159,25 @@ classdef CrabolaEphysRec
             % until the filter is selected.
             
             % Filter by code
-            whereCodes = ones(1,length(obj.stims))
+            whereCodes = ones(1,length(obj.stims));
             if usecode
-                whereCodes = ismember([obj.stims.code], stimCodes)
+                whereCodes = ismember([obj.stims.code], stimCodes);
             end
             
             % Filter by runing codition
-            whereRuning = ones(1,length(obj.stims))
+            whereRuning = ones(1,length(obj.stims));
             if strcmp(condition, 'ball')
-                whereRuning = ismember([obj.stims.running], 1)
+                whereRuning = ismember([obj.stims.running], 1);
             elseif strcmp(condition, 'air')
-                whereRuning = ismember([obj.stims.running], 0)
+                whereRuning = ismember([obj.stims.running], 0);
             end
             
             %Filter by screen
-            whereScreen = ones(1,length(obj.stims))
+            whereScreen = ones(1,length(obj.stims));
             if ~isempty(screens)
-                whereScreen = ismember([obj.stims.code], screens)
+                whereScreen = ismember([obj.stims.screen], screens);
             end
-            stimIND = whereCodes&whereRuning&whereScreen;
+            stimIND = find(whereCodes&whereRuning&whereScreen);
 %             stimIND = find(ismember([obj.stims.code], stimCodes));
 %             if strcmp(condition, 'ball')
 %                 for n = flip(1:length(stimIND))
