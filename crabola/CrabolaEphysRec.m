@@ -340,6 +340,7 @@ classdef CrabolaEphysRec
                 if autotitle
                     title(['Cluster: ' num2str(cluster) ...
                            ' Stim: ' num2str(obj.stims(stimIND(ns)).code) ...
+                           ' Trial: ' num2str(stimIND(ns)) ...
                            ' Screen: ' num2str(obj.stims(stimIND(ns)).screen) ...
                            ' Runing: ' pool{obj.stims(stimIND(ns)).running+1} ...
                            ' Nº Spikes: ' num2str(length(raster)) ...
@@ -607,7 +608,10 @@ classdef CrabolaEphysRec
             %
             % 'smoothmethod' --> metodo usado para el suavizado
             %
-            % smoothball'    --> opcion de suavizar las corridas
+            % 'smoothball'    --> opcion de suavizar las corridas
+            %
+            % 'stimind'       --> reemplaza  a stim. Fuerza los indices a
+            %                       exportar
             
             condition = 'ball';
             binSize = 50;%ms
@@ -616,6 +620,7 @@ classdef CrabolaEphysRec
             ballSpan = 5;
             smoothMethod = 'moving';
             smoothBall = false;
+            stimIND = [];
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'condition'
@@ -632,13 +637,17 @@ classdef CrabolaEphysRec
                         ballSpan = varargin{arg+1};
                     case 'smoothball'
                         smoothBall = varargin{arg+1};
+                    case 'stimind'
+                        stimIND = varargin{arg+1};
                     otherwise
                         error(['invalid optional argument: ' varargin{arg}])
                 end
             end
             nBins = round((durations(2)+durations(1))*(1000/binSize));
             neu =  obj.neurons(clu);
-            stimIND = obj.getStimIndex(stim, 'condition', condition);
+            if isempty(stimIND)
+                stimIND = obj.getStimIndex(stim, 'condition', condition);
+            end
             for i = 1:length(stimIND)
                 [raster, index, stimList] = neu.getRasters(stim, 'stimindex', stimIND(i), 'durations', durations);
                 [freq, t] = neu.getPSH(raster, index, [-durations(1) durations(2)], nBins, 'smoothspan', ephysSpan, 'smoothmethod', smoothMethod);
