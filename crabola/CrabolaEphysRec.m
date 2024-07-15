@@ -135,7 +135,6 @@ classdef CrabolaEphysRec
         function stimIND = getStimIndex(obj, stimCodes, varargin)
             condition = 'all';
             screens = [];
-            usecode = 1;
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'condition'
@@ -146,8 +145,6 @@ classdef CrabolaEphysRec
                         end
                     case 'screens'
                         screens = varargin{arg+1};
-                    case 'nocodes'
-                        usecode = 0;
                 end
             end
             %find selected stims
@@ -160,7 +157,7 @@ classdef CrabolaEphysRec
             
             % Filter by code
             whereCodes = ones(1,length(obj.stims));
-            if usecode
+            if ~isempty(stimCodes)
                 whereCodes = ismember([obj.stims.code], stimCodes);
             end
             
