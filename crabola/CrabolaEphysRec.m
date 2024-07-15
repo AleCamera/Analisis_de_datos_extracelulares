@@ -139,10 +139,10 @@ classdef CrabolaEphysRec
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'condition'
-                        if sum(strcmp({'all', 'ball', 'air'}, varargin{arg+1}))
+                        if sum(strcmp({'all', 'ball', 'air'}, varargin{arg+1})) || 0 || 1
                              condition = varargin{arg+1};
                         else
-                            error('invalid "condition", only "all", "ball" and "air" are permited')
+                            error('invalid "condition", only "0-1", "all", "ball" and "air" are permited')
                         end
                     case 'screens'
                         screens = varargin{arg+1};
