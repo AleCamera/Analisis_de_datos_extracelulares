@@ -138,8 +138,12 @@ classdef CrabolaEphysRec
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'condition'
-                        if sum(strcmp({'all', 'ball', 'air'}, varargin{arg+1})) || 0 || 1
+                        if sum(strcmp({'all', 'ball', 'air'}, varargin{arg+1}))
                              condition = varargin{arg+1};
+                        elseif varargin{arg+1} == 0
+                            condition = 'air';
+                        elseif varargin{arg+1} == 1
+                            condition = 'ball';
                         else
                             error('invalid "condition", only "0-1", "all", "ball" and "air" are permited')
                         end
@@ -269,7 +273,7 @@ classdef CrabolaEphysRec
                     case 'smoothmethod'
                         method = varargin{arg+1};
                     case 'spanephys'
-                        ehpysSpan = varargin{arg+1};
+                        ephysSpan = varargin{arg+1};
                     case 'spanball'
                         ballSpan = varargin{arg+1};
                     case 'addtitle'
@@ -683,6 +687,8 @@ classdef CrabolaEphysRec
                 [freq, t] = neu.getPSH(raster, index, [-durations(1) durations(2)], nBins, 'smoothspan', ephysSpan, 'smoothmethod', smoothMethod);
                 if ~isempty(freq)
                     fRates(:,i)  = freq;
+                else
+                    error('No hay spikes en este registro');
                 end
                 currRun = obj.ball.interpolateRuns(stimIND(i), binSize/1000, 'smooth', smoothBall, 'span', ballSpan, 'smoothmethod', smoothMethod);
                 currRun.time = currRun.time-10;
