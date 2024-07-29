@@ -208,7 +208,13 @@ classdef Neuron
             end
             [freq,~] = SyncHist(raster, index,'mode', 'mean' ,'durations',...
                                 bounds, 'nBins', nBins);
-            freq = smooth(freq, span, method);
+            if strcmp('gaussian',method)
+                w = gausswin(span, 2.5);
+                w = w/sum(w);
+                freq = filter(w, 1, freq);
+            else
+                freq = smooth(freq, span, method);
+            end
             t = (bounds(1):(bounds(2) - bounds(1))/(nBins):bounds(2))';
             t = t(2:end);
         end
@@ -440,6 +446,7 @@ classdef Neuron
                 stimIND = obj.getStimIndex(stim);
             end
             ns = 0;
+            sFreq.freqs = [];
             for ind = stimIND
                 ns = ns+1;
                 [raster, index, ~] = obj.getRasters([], 'durations',...
