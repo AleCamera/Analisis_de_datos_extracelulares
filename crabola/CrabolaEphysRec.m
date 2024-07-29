@@ -653,6 +653,7 @@ classdef CrabolaEphysRec
             ephysSpan = 5;
             ballSpan = 5;
             smoothMethod = 'moving';
+            smoothBallMethod = 'moving';
             smoothBall = false;
             stimIND = [];
             for arg = 1:2:length(varargin)
@@ -690,7 +691,7 @@ classdef CrabolaEphysRec
                 else
                     error('No hay spikes en este registro');
                 end
-                currRun = obj.ball.interpolateRuns(stimIND(i), binSize/1000, 'smooth', smoothBall, 'span', ballSpan, 'smoothmethod', smoothMethod);
+                currRun = obj.ball.interpolateRuns(stimIND(i), binSize/1000, 'smooth', smoothBall, 'span', ballSpan, 'smoothmethod', smoothBallMethod);
                 currRun.time = currRun.time-10;
                 runs(i) = currRun;
             end
