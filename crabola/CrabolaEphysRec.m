@@ -40,10 +40,7 @@ classdef CrabolaEphysRec
                 for f = 3:length(list)
                     fileList{f-2} = list(f).name;
                 end
-                %Busco los archivos a procesar y los guardo en un cell
-                % 1º recordin.mat
-                % 2º protocolo.mat
-                % 3º 
+                %Busco si hay un recording
                 for f = 1:length(fileList)
                     if contains(fileList{f}, 'recording')
                         rec = load(replace(fileList{f}, '', ''));
