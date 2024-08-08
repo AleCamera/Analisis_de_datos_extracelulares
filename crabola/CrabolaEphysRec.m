@@ -22,7 +22,6 @@ classdef CrabolaEphysRec
             % 3- los estimulos
             % el argumento optativo "samplefreq" me permite setear la
             % frecuencia de sampleo a la que cargar las neuronas
-            % jdasdasdasdasdas
             sf = 30000;
             saveFile = false;
             for arg = 1:2:length(varargin)
@@ -41,8 +40,10 @@ classdef CrabolaEphysRec
                 for f = 3:length(list)
                     fileList{f-2} = list(f).name;
                 end
-                %me fijo si existe el archivo recording.mat en la carpeta
-                %del registro
+                %Busco los archivos a procesar y los guardo en un cell
+                % 1º recordin.mat
+                % 2º protocolo.mat
+                % 3º 
                 for f = 1:length(fileList)
                     if contains(fileList{f}, 'recording')
                         rec = load(replace(fileList{f}, '', ''));
@@ -129,6 +130,10 @@ classdef CrabolaEphysRec
                 disp('There are missing trials on the crabola')
                 disp(['i have ' num2str(length(obj.stims)) ' on the ephys'])
                 disp(['but only ' num2str(length(obj.ball.trial)), ' on the crabola']);
+            elseif length(obj.ball.trial) > length(obj.stims)
+                disp('There are missing trials on the ephys')
+                disp(['i have ' num2str(length(obj.ball.trial)), ' on the crabola']);
+                disp(['but only ' num2str(length(obj.stims)) ' on the ephys'])
             end            
         end
         
