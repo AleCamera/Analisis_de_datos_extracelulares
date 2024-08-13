@@ -110,9 +110,6 @@ function md = loadBallData(path, varargin)
                 miceData = [dataTable.x1, dataTable.y1, dataTable.x2, dataTable.y2];
                 %cargo el vector tiempos
                 time = dataTable.time;
-                
-                
-                
 
                 %Cargo el ID en el caso de estar presente
                 fileParts = file.split('-');
