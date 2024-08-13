@@ -198,18 +198,21 @@ classdef Neuron
         function [freq, t] = getPSH(obj, raster, index, bounds, nBins, varargin)
             span = 5;
             method = 'moving';
+            alphaGaussian = 2.5;
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'smoothspan'
                         span = varargin{arg+1};
                     case 'smoothmethod'
                         method = varargin{arg+1};
+                    case 'alphagaussian'
+                        alphaGaussian = varargin{arg+1};
                 end
             end
             [freq,~] = SyncHist(raster, index,'mode', 'mean' ,'durations',...
                                 bounds, 'nBins', nBins);
             if strcmp('gaussian',method)
-                w = gausswin(span, 2.5);
+                w = gausswin(span, alphaGaussian);
                 w = w/sum(w);
                 freq = filtfilt(w, 1, freq);
             else
