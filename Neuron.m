@@ -211,7 +211,7 @@ classdef Neuron
             if strcmp('gaussian',method)
                 w = gausswin(span, 2.5);
                 w = w/sum(w);
-                freq = filter(w, 1, freq);
+                freq = filtfilt(w, 1, freq);
             else
                 freq = smooth(freq, span, method);
             end
