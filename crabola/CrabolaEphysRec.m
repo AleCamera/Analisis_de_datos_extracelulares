@@ -9,7 +9,7 @@ classdef CrabolaEphysRec
         protocol;
     end
     methods
-        function obj = CrabolaEphysRec(type, input, varargin)
+        function obj = CrabolaEphysRec(type, inpt, varargin)
             % CrabolaEphysRec es el constructor de la clase. 
             % Tengo que decirle que tipo de input le doy:
             % 'file' si el input es el path a la carpeta con la salida del
@@ -28,14 +28,17 @@ classdef CrabolaEphysRec
                 switch lower(varargin{arg})
                     case 'samplefreq'
                         sf = varargin{arg+1};
-                        
                     otherwise
                         error([varargin{arg} 'is not a valid argument'])
                 end
             end
             if strcmp(type, 'file')
-                path = input;
-                cd(input)
+                if strcmp(inpt, '')
+                    path = uigetdir(pwd);
+                else
+                    path = inpt;
+                end
+                cd(path)
                 list = dir;
                 for f = 3:length(list)
                     fileList{f-2} = list(f).name;
@@ -103,9 +106,9 @@ classdef CrabolaEphysRec
                 end
                
             elseif strcmp(type, 'data')
-                ballData = input{1};
-                neurons = input{2};
-                stims = input{3};
+                ballData = inpt{1};
+                neurons = inpt{2};
+                stims = inpt{3};
                 for s = 1:length(stims)
                 stimList(s) = struct('code', stims(s,1), ...
                     'start', stims(s,2), ...
