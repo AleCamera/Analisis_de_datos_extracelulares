@@ -10,21 +10,31 @@
 
 function GetSPKWF(varargin)
 waveLen = 7; %ms
-fileType = "fil";
+PathName = [];
 for arg = 1:2:length(varargin)
     switch lower(varargin{arg})
         case 'length'
             waveLen = varargin{arg+1};
-        case 'type'
-            fileType = string(varargin{arg+1});
+        case 'path'
+            PathName = string(varargin{arg+1});
+            
     end
 end
 
-[FileName,PathName,~] = uigetfile(['*.' char(fileType)],['Seleccione archivo *.'  char(fileType) ' para analizar']);
-cd(PathName)
-[FileNameXML,PathNameXML,~] = uigetfile('*.xml','Seleccione archivo *.xml para analizar');
+if isempty(PathName)
+    [FileNameXML,PathNameXML,~] = uigetfile('*.xml','Seleccione archivo *.xml para analizar');
+else
+    fileList = dir(PathName)
+    FileNameXMLMask = contains(fileList(f).name, '.xml')
+    if sum(FileNameXMLMask) == 1
+        FileNameXML = char(fileList(FileNameXMLMask).name);
+        disp(['se usará ' FileNameXML])
+    else
+        [FileNameXML,PathNameXML,~] = uigetfile(fullfile(PathName,'*.xml'),'Seleccione archivo *.xml para analizar');
+    end
+end
 
-[PathNameXML, FileNameXML(1:end-4)];
+% [PathNameXML, FileNameXML(1:end-4)];
 FileInfo = LoadPar([PathNameXML, FileNameXML(1:end-4)]);
 A = dir([FileInfo.FileName,'.res*']);
 Ventana = waveLen / (1000 / FileInfo.SampleRate);
