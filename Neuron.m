@@ -220,6 +220,9 @@ classdef Neuron
             end
             t = (bounds(1):(bounds(2) - bounds(1))/(nBins):bounds(2))';
             t = t(2:end);
+            if isempty(freq)
+                freq = zeros(1,length(t));
+            end
         end
         
         function screens = getScreens(obj, stimCode)
@@ -247,17 +250,26 @@ classdef Neuron
             maxPeakInd = minPeakInd + (fullSegLen - finalSegLen);
             fileList = dir;
             assignin('base', 'fileList',fileList);
-            for f = 1:length(fileList)
-                if contains(fileList(f).name, '_SPK_')
-                    FileName = char(fileList(f).name);
-                    break
-                elseif f == length(fileList)
-                    disp('I can find the _SPK_ file, we need to generate it')
-                    disp('creating _SPK_ file...')
-                    GetSPKWF('type', 'fil', 'length', fullSegLen)
+            FileName = [];
+            FileNameMask =  contains({fileList.name}, '_SPK_')
+            if sum(FileNameMask) == 1
+                FileName = char(fileList(FileNameMask).name);
+            elseif sum(FileNameMask) > 1
+                disp('More than one _SPK_ file, select one')
+                [FileName,~,~] = uigetfile('*.mat','Seleccione archivo *_SPK_fil.mat para usar');
+            else
+                disp('I can find the _SPK_ file, we need to generate it')
+                disp('creating _SPK_ file...')
+                GetSPKWF('path',fileList(1).folder , 'length', fullSegLen)
+                fileList = dir;
+                spkMask = contains({fileList.name}, '_SPK_');
+                if sum(spkMask) == 1
+                    FileName = fileList(spkMask).name;
+                else
                     [FileName,~,~] = uigetfile('*.mat','Seleccione archivo *_SPK_fil.mat para usar');
                 end
             end
+            cd()
             load(FileName);
             
             [nWavePoints, nElectrodes, nSpikes] = size(Spk.Segs);

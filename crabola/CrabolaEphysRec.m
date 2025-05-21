@@ -184,20 +184,6 @@ classdef CrabolaEphysRec
                 whereScreen = ismember([obj.stims.screen], screens);
             end
             stimIND = find(whereCodes&whereRuning&whereScreen);
-%             stimIND = find(ismember([obj.stims.code], stimCodes));
-%             if strcmp(condition, 'ball')
-%                 for n = flip(1:length(stimIND))
-%                     if ~obj.stims(stimIND(n)).running
-%                         stimIND(n) = [];
-%                     end
-%                 end
-%             elseif strcmp(condition, 'air')
-%                 for n = flip(1:length(stimIND))
-%                     if obj.stims(stimIND(n)).running
-%                         stimIND(n) = [];
-%                     end
-%                 end
-%             end
             
         end
         
@@ -210,40 +196,47 @@ classdef CrabolaEphysRec
             %marca el final del movimiento del estimulo. Todos los
             %estimulos empiezan en cero.
             %
-            % 'condition' me permite seleccionar si uso todos los trials,
-            %             solo los que el bicho estaba sobre la pelota o solo los que
-            %             solo los que estaba en el aire.
+            % 'condition'   me permite seleccionar si uso todos los trials,
+            %               solo los que el bicho estaba sobre la pelota o solo los que
+            %               solo los que estaba en el aire.
             %
-            % 'xlim'      me permite seleccionar los limites horizontales.
+            % 'xlim'        me permite seleccionar los limites horizontales.
             %
-            % 'binsize'   es el tamaño del bineado en ms.
+            % 'binsize'     es el tamaño del bineado en ms.
             %
-            % 'title'     pone un titulo en la figura.
+            % 'title'       pone un titulo en la figura.
             %
-            % 'behavior'  me permite elegir si quiero graficar la velocidad
-            %             traslacional, rotacional o la direccion.
+            % 'behavior'    me permite elegir si quiero graficar la velocidad
+            %               traslacional, rotacional o la direccion.
             %
-            % 'plotmean' agrega una fila mas a la figura con la media de
-            %             la respuesta de las neuronas en las distitntas
-            %             condiciones
+            % 'plotmean'    1 agrega una fila mas a la figura con la media de
+            %               la respuesta de las neuronas en las distitntas
+            %               condiciones
+            %               2 genera una nueva figura con la media de la
+            %               respuesta
             %
-            % 'makefig'   si es verdadero genera una nueva figura, si es
-            %             falso trata de plotear sobre la anterior
+            % 'makefig'     si es verdadero genera una nueva figura, si es
+            %               falso trata de plotear sobre la anterior
             %
             % 'smoothmethod' define el metodo que voy a usar con la funcion 
             %                'smooth'
-            % 'spanephys' define el numero de bines que uso para la
-            %             ventana del suavizado de la frecuencia de disparo
+            % 'spanephys'   define el numero de bines que uso para la
+            %               ventana del suavizado de la frecuencia de disparo
             %
-            % 'spanball'   define el numero de bines que uso para la
-            %             ventana del suavizado de la velocidad traslacional
-            
+            % 'spanball'    define el numero de bines que uso para la
+            %               ventana del suavizado de la velocidad traslacional
+            % 'addtitle'    agrega un titulo general a la figura
+            % 'behavdelay'  ofset negativo sobre el comportamiento
+            % 'autotitle'   agrega un titulo a cada subfigura con los datos
+            %               Cluster:  Stim:  Trial:  Screen:  Runing:  Nº Spikes:  Date: 
+            % 'noephys'     no plotea la respuesta fisiologica
+
             condition = 'all';
             xlimit = [-10, 15];
             binSize = 50;
             titleTxt = '';
             behavior = 'tras';
-            plotMean = false;
+            plotMean = 0;
             makeFig = true;
             ephysSpan = 5;
             ballSpan = 5;
@@ -251,6 +244,8 @@ classdef CrabolaEphysRec
             addTitle = false;
             behavDelay = 10;
             autotitle = 0;
+            noephys = 0;
+            bytrial = 0;
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'condition'
@@ -287,15 +282,22 @@ classdef CrabolaEphysRec
                         behavDelay = varargin{arg+1};
                     case 'autotitle'
                         autotitle = varargin{arg+1};
+                    case 'noephys'
+                        noephys = varargin{arg+1};
+                    case 'bytrial'
+                        bytrial = varargin{arg+1};
                     otherwise
                         error(['invalid optional argument: ' varargin{arg}])
                 end
             end
             nBins = round((xlimit(2)-xlimit(1))*(1000/binSize));
             
-            stimIND = obj.getStimIndex(stim, 'condition', condition);
-            %assignin('base','stimIND',stimIND)
-            [raster, index, stimList] = obj.neurons(cluster).getRasters(stim, 'durations', [-xlimit(1), xlimit(2)], 'stimIndex', stimIND);
+            if bytrial
+                stimIND = stim;
+            else
+                stimIND = obj.getStimIndex(stim, 'condition', condition);
+            end
+            [~, index, ~] = obj.neurons(cluster).getRasters(stim, 'durations', [-xlimit(1), xlimit(2)], 'stimIndex', stimIND);
 
             for i = unique(index)'
                 disp([' trial ' num2str(i) ' has ' num2str(sum(index == i)) ' spikes'])
@@ -312,7 +314,7 @@ classdef CrabolaEphysRec
             end
             hold on
             
-            if plotMean
+            if plotMean == 1
                 nSubPlots = length(stimIND)+1;
             else
                 nSubPlots = length(stimIND);
@@ -335,9 +337,6 @@ classdef CrabolaEphysRec
                     behLabel = 'direction (deg)';
                 end
                 
-                
-                
-                
                 if ~isempty(runPar)
                     yyaxis left
                     plot(run.time-behavDelay, smooth(runPar, ballSpan, method), 'linewidth', 2)
@@ -350,27 +349,31 @@ classdef CrabolaEphysRec
                 if ns == round(length(stimIND)/2)
                     ylabel(behLabel);
                 end
-                [raster, index, stimList] = obj.neurons(cluster).getRasters(2, 'durations', [abs(xlimit(1)), abs(xlimit(2))], 'stimIndex', s);
-%                 [freq,~] = SyncHist(raster(index == ns), index(index==ns),'mode', 'mean' ,'durations',...
-%                                     [xlimit(1); xlimit(2)], 'nBins', nBins);
-                assignin('base','raster',raster)
-                [freq, t] = obj.neurons(cluster).getPSH(raster, index, xlimit, nBins);
-                
-                freq = smooth(freq, ephysSpan, method);
-%                 t = (xlimit(1):(xlimit(2) - xlimit(1))/(nBins-1):xlimit(2))';
-                if isempty(freq)
-                    freq = zeros(size(t));
+                if ~noephys
+                    [raster, index, ~] = obj.neurons(cluster).getRasters(2, 'durations', [abs(xlimit(1)), abs(xlimit(2))], 'stimIndex', s);
+    %                 [freq,~] = SyncHist(raster(index == ns), index(index==ns),'mode', 'mean' ,'durations',...
+    %                                     [xlimit(1); xlimit(2)], 'nBins', nBins);
+                    assignin('base','raster',raster)
+                    [freq, t] = obj.neurons(cluster).getPSH(raster, index, xlimit, nBins);
+
+                    freq = smooth(freq, ephysSpan, method);
+    %                 t = (xlimit(1):(xlimit(2) - xlimit(1))/(nBins-1):xlimit(2))';
+                    if isempty(freq)
+                        freq = zeros(size(t));
+                    end
+                    if plotMean
+                        freqs(:,ns) = freq;
+                    end
+                    yyaxis right
+                    plot(t, freq)
+                    if ns == round(length(stimIND)/2)
+                        ylabel('firing freq (Hz)');
+                    end
+                else
+                    raster = [];
                 end
-                if plotMean
-                    freqs(:,ns) = freq;
-                end
-                yyaxis right
-                plot(t, freq)
                 if rTopLimit < max(ylim)
                     rTopLimit = max(ylim);
-                end
-                if ns == round(length(stimIND)/2)
-                    ylabel('firing freq (Hz)');
                 end
                 if ns == length(stimIND)
                     xlabel('time (s)')
@@ -387,7 +390,7 @@ classdef CrabolaEphysRec
                 end
             end
             
-            if plotMean
+            if plotMean == 1
                 runningTrials = false(1, length(stimIND));
                 airTrials = false(1, length(stimIND));
                 for nt = 1:length(stimIND)
@@ -405,6 +408,8 @@ classdef CrabolaEphysRec
                     yyaxis right
                     plot(t, runningMean, '-b', t, airMean, '-r', 'linewidth', 2);
                 end
+            elseif plotMean == 2
+                
             end
             
             
