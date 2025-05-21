@@ -412,7 +412,6 @@ classdef CrabolaEphysRec
                 
             end
             
-            
             for ns = 1:nSubPlots
                 subplot(nSubPlots, 1,ns)
                 if ns < nSubPlots
@@ -429,9 +428,7 @@ classdef CrabolaEphysRec
                 %addPSHDecorations(stim, obj.ball.trial(s).duration, 40, 'stimUnderPlot', false, 'heigth', 0.2)
                 xlim(xlimit)
             end
-            
         end
-        
         
         function neurons = loadClusters(obj, path, varargin)
             % loadClusters toma el path de la carpeta donde estan los
@@ -458,6 +455,7 @@ classdef CrabolaEphysRec
             load('Estimulos.mat');
             %cargo los monitores
             load('Monitores.mat');
+
             %% Levanto los datos de los clusters
             id = path(end-7:end);
             %busco el archivo .clu (contiene el cluster asignado a cada spike) en la
@@ -480,7 +478,15 @@ classdef CrabolaEphysRec
             clear cluDataFile
             clear clusterData
             
-            
+            %Cargo los registros de los estimulos si es que existen
+            fileMask = contains({files.name},'RegStims.mat');
+            if sum(fileMask)==1
+                load(files(fileMask).name);
+            elseif sum(fileMask)>1
+                error('More than one RegStims.mat')
+            else
+                stimsRegs = cell(legnth(Estimulos),1);
+            end
             %busco el archivo con los tiempos de cada spike            
             for f = 1:length(files)
                 name = string(files(f).name);
@@ -501,6 +507,7 @@ classdef CrabolaEphysRec
                 neuron.file = path;
                 neuron.cluster = cluster;
                 neuron.Estimulos = Estimulos;
+                neuron.EstReg = stimsRegs;
                 neuron.Monitores = Monitores;
                 neuron.name = [id '-C' num2str(cluster)];
                 neurons(cluster) = Neuron(neuron);
