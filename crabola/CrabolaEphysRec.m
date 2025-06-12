@@ -246,6 +246,9 @@ classdef CrabolaEphysRec
             autotitle = 0;
             noephys = 0;
             bytrial = 0;
+            stimPlot = 0;
+            rasterPos = 'top';
+            rasterPlot = 0;
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'condition'
@@ -286,6 +289,12 @@ classdef CrabolaEphysRec
                         noephys = varargin{arg+1};
                     case 'bytrial'
                         bytrial = varargin{arg+1};
+                    case 'stimplot'
+                        stimPlot = varargin{arg+1};
+                    case 'rasterplot'
+                        rasterPlot = varargin{arg+1};
+                    case 'rasterpos'
+                        rasterPos = varargin{arg+1};
                     otherwise
                         error(['invalid optional argument: ' varargin{arg}])
                 end
@@ -339,8 +348,7 @@ classdef CrabolaEphysRec
                 
                 if ~isempty(runPar)
                     yyaxis left
-                    plot(run.time-behavDelay, smooth(runPar, ballSpan, method), 'linewidth', 2)
-
+                    plot(run.time-behavDelay, smooth(runPar, ballSpan, method), "-",'linewidth', 2)
                 end
                 if lTopLimit < max(ylim)
                     lTopLimit = max(ylim);
@@ -419,16 +427,39 @@ classdef CrabolaEphysRec
                 end
                 yyaxis left
                 ylim([min(ylim) lTopLimit])
+                
                 line([obj.stims(s).finish - obj.stims(s).start, obj.stims(s).finish - obj.stims(s).start], [0, lTopLimit])
                 %addPSHDecorations(stim, obj.stims(s).finish - obj.stims(s).start ,lTopLimit, 'StimUnderPlot', true)
-                %PlotRasters_oneColor(raster(index == ns), index(index==ns),[-10, 15], max(ylim), 'RelativeSize', 0.1, 'position', 'botom')
+                switch rasterPlot
+                    case 1
+                        PlotRasters_oneColor(raster(index == ns), index(index==ns),[-10, 15], max(ylim), 'RelativeSize', 0.1, 'position', rasterPos)
+                end
                 yyaxis right
+                
+                if isfield(obj.stims,'reg')
+                    disp('reg es campo de stims')
+                    if ~isempty(obj.stims(s).reg)
+                        disp('reg no esta vacio')
+                        switch stimPlot
+                            case 1
+                                obj.plotShade(obj.stims(s).reg(:,1)',obj.stims(s).reg(:,2)','rigth',1,'stimmax',rTopLimit,'alpha',0.2);
+                            case 2
+                                y = rTopLimit*obj.stims(s).reg(:,1)'/max(obj.stims(s).reg(:,1));
+                                plot([-5 obj.stims(s).reg(:,2)' obj.stims(s).reg(end,2)'+5],[y(1) y y(end)],"--k");
+                            case 3
+                                obj.plotShade(obj.stims(s).reg(:,1)',obj.stims(s).reg(:,2)','rigth',1,'stimmax',rTopLimit*0.2,'alpha',0.2,'yoffset',0.8*rTopLimit);
+                        end
+                    end
+                end
                 ylim([0 rTopLimit])
                 
                 %addPSHDecorations(stim, obj.ball.trial(s).duration, 40, 'stimUnderPlot', false, 'heigth', 0.2)
                 xlim(xlimit)
+                
             end
         end
+        
+        
         
         function neurons = loadClusters(obj, path, varargin)
             % loadClusters toma el path de la carpeta donde estan los
@@ -736,5 +767,53 @@ classdef CrabolaEphysRec
             end
         end
         
+        function est = plotShade(obj,var,t,varargin)
+            YOffset = 0;
+            stimMax = 1;
+            tiempos = [-5 5];
+            alpha = 0.5;
+            rigth = 0;
+            lColor = [];
+            for arg = 1:2:length(varargin)
+                switch lower(varargin{arg})
+                    case 'stimmax'
+                        stimMax = varargin{arg+1};
+                    case 'lcolor'
+                        lColor = varargin{arg+1};
+                    case 'rigth'
+                        rigth = varargin{arg+1};
+                    case 'alpha'
+                        alpha = varargin{arg+1};
+                    case 'yoffset'
+                        YOffset = varargin{arg+1};
+                    otherwise
+                        error(['invalid optional argument: ' varargin{arg}])
+                end
+            end
+
+            var = reshape(var,1,[]);
+            t = reshape(t,1,[]);
+            
+            if rigth
+                yyaxis right
+            else
+                yyaxis left
+            end
+
+            xconf = [tiempos(1) t t(end)+tiempos(2) t(end)+tiempos(2) tiempos(1)];
+            yconf = ((var/max(var))*stimMax)+YOffset;
+            yconf = [yconf(1) yconf yconf(end) YOffset YOffset];
+            
+            if isempty(lColor)
+                est = fill(xconf,yconf,[0 0 0]);
+            else
+                est = fill(xconf,yconf,lColor);
+            end
+            est.EdgeColor = 'none';
+            est.FaceAlpha = alpha;
+        end
+        
     end
+    
+    
 end
