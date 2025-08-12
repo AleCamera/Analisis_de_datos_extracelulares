@@ -31,69 +31,83 @@ function md = loadBallData(path, varargin)
                 filter = varargin{arg+1};
         end
     end
-
-    cd(path)
-    files = dir;
-    if multi
-        nFiles = 0;
-        for f = 1:length(files)
-            name = string(files(f).name);
-            if name.contains(keyword_old)
-                nFiles = nFiles+1;
-                file_multi(nFiles) = name;
-                format = 0;
-                %old_format = true;
-            elseif name.contains(keyword_new)
-                nFiles = nFiles+1;
-                file_multi(nFiles) = name;
-                format = 1;
-                %old_format = false;
-            end
-            if f == length(files) && nFiles == 0
-                error('I cannot find the crabola data file');
-            end
-        end
-    else
-        nFiles = 1;
-    end
-
-    % Exploro los nombres de los archivos extrayendo el nombre de los
-    % correctos
+    
     file = [];
     adjustFile = [];
     t0File = [];
     tailsFile = [];
-    for f = 1:length(files)
-        name = string(files(f).name);
-        if name.contains(keyword_old) && isempty(file)
-            file = name;
-            format = 0;
-            disp('asumo formato: old')
-            %old_format = true;
-        elseif name.contains(keyword_new) && isempty(file)
-            file = name;
-            format = 1;
-            disp('asumo formato: new')
-            %old_format = false;
+    tsFile = [];
+    
+    while isempty(file) | isempty(adjustFile) | isempty(t0File) | isempty(tailsFile) | isempty(tsFile)
+        cd(path)
+        files = dir;
+        if multi
+            nFiles = 0;
+            for f = 1:length(files)
+                name = string(files(f).name);
+                if name.contains(keyword_old)
+                    nFiles = nFiles+1;
+                    file_multi(nFiles) = name;
+                    format = 0;
+                    %old_format = true;
+                elseif name.contains(keyword_new)
+                    nFiles = nFiles+1;
+                    file_multi(nFiles) = name;
+                    format = 1;
+                    %old_format = false;
+                end
+                if f == length(files) && nFiles == 0
+                    error('I cannot find the crabola data file');
+                end
+            end
+        else
+            nFiles = 1;
         end
-        if name.contains(keyword_adjust)
-            adjustFile = name;
-            disp('se encontro log')
+
+        % Exploro los nombres de los archivos extrayendo el nombre de los
+        % correctos
+        for f = 1:length(files)
+            name = string(files(f).name);
+            if name.contains(keyword_old) && isempty(file)
+                file = name;
+                format = 0;
+                disp('asumo formato: old')
+                %old_format = true;
+            elseif name.contains(keyword_new) && isempty(file)
+                file = name;
+                format = 1;
+                disp('asumo formato: new')
+                   %old_format = false;
+            elseif f == length(files) && isempty(file)
+                disp('I cannot find the crabola data file. Select folder');
+                path = uigetdir(path);
+                break;
+            end
+            if name.contains(keyword_adjust)
+                adjustFile = name;
+                disp('se encontro log')
+            end
+            if name.contains(keyword_t0)
+                t0File = name;
+                disp('se encontro t0')
+            end
+            if name.contains(keyword_tails)
+                tailsFile = name;
+                disp('se encontro tails')
+            end
+            if name.contains('timeStamps.txt')
+                tsFile = fullfile(path, name);
+                disp('se encontro timeStamps')
+            end
         end
-        if name.contains(keyword_t0)
-            t0File = name;
-            disp('se encontro t0')
-        end
-        if name.contains(keyword_tails)
-            tailsFile = name;
-            disp('se encontro tails')
-        end
-        if name.contains('timeStamps.txt')
-            tsFile = fullfile(path, name);
-            disp('se encontro timeStamps')
-        end
-        if f == length(files)>0 && isempty(file)
-            error('I cannot find the crabola data file');
+        if isempty(file) | isempty(adjustFile) | isempty(t0File) | isempty(tailsFile) | isempty(tsFile) & f == length(files)
+            disp('One or more crabola files can not be found');
+            response = input('¿Do you like to change folder and reload?','s');
+            if any(strcmp(response,["s" "S" "Y" "y" "si" "yes" "Si" "Yes"]))
+                path = uigetdir(path);
+            else
+                break;
+            end
         end
     end
 
@@ -179,9 +193,35 @@ function md = loadBallData(path, varargin)
                     if nCorrStim == nStims
                         startCorrected = seconds([correctionTable.t_start]-t0);
                         finishCorrected = seconds([correctionTable.t_finish]-t0);
+                    elseif nCorrStim < nStims
+                        disp('Tails contiene menos estimulos que timestamps')
+                        disp('Se intentaran coincidir los tiempos y se recortara timestamps')
+                        startCorrected = seconds([correctionTable.t_start]-t0);
+                        finishCorrected = seconds([correctionTable.t_finish]-t0);
+                        % Busco el tiempo mas cercano
+                        
+                        stimStart = tsTable.t_start;
+                        stimFinish = tsTable.t_finish;
+                        
+                        [minDiffStart, minDiffStartIndex] = min(abs(stimStart-startCorrected(1)));
+                        [minDiffFinish, minDiffFinishIndex] = min(abs(stimFinish-finishCorrected(1)));
+                        if minDiffStartIndex == minDiffFinishIndex
+                            if  all((stimStart((1:length(startCorrected))+minDiffStartIndex-1)-startCorrected)-minDiffStart < 0.3) &&...
+                                all((stimFinish((1:length(finishCorrected))+minDiffFinishIndex-1)-finishCorrected)-minDiffFinish < 0.3)
+                                disp('Se encontro un segmento de timeStamps coincidente con tails. Se procedera a recortar tails')
+                                stimStart = stimStart((1:length(startCorrected))+minDiffStartIndex-1);
+                                stimFinish = stimFinish((1:length(finishCorrected))+minDiffFinishIndex-1);
+                                nStims = length(stimStart);
+                            else
+                                error('Existe coincidencias incompletas entre tails y timeStamps. No se procedera con el recorte de timeStamps')
+                            end
+                        else
+                            error('No se pudo encontrar concidencia completa de tiempo entre tails con ningun timeStamp')
+                        end  
                     else
-                        error('tails y timestamps no contienen la misma cantidad de entradas')
+                        error('No se pudo encontrar concidencia completa de tiempo entre tails con ningun timeStamp')
                     end
+                    
                     if max(abs(stimStart - startCorrected))<0.3
                         stimStart = startCorrected;
                         stimFinish= finishCorrected;
@@ -281,8 +321,10 @@ function md = loadBallData(path, varargin)
         %ahora que tengo los datos en centímietros genero mi set de datos.
         md(i) = MiceData(miceData, time, stimStart, stimFinish, nStims, diametro, crabID);
         if ~isempty(adjustFile)
-            md(i).stimCode = correctionTable.stim(validStims);
-            disp(correctionTable.stim(validStims))
+            validStims = find(  correctionTable.code>0 & ...
+                                correctionTable.code~=99 & ... 
+                                correctionTable.code<1000);
+            md(i).stimCode = correctionTable.code(validStims);
         end
     end
 end

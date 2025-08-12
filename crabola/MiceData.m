@@ -90,5 +90,52 @@ classdef MiceData
                 end
             end
         end
+        function means = getStimsMean(obj,stimIND,varargin)
+            binSize = 50; %ms
+            useSmooth = false;
+            span = 5;
+            method = 'moving';
+            for arg = 1:2:length(varargin)
+                switch lower(varargin{arg})
+                    case 'smooth'
+                        useSmooth = varargin{arg+1};
+                    case 'span'
+                        span = varargin{arg+1};
+                    case 'smoothmethod'
+                        method = varargin{arg+1};
+                    case 'binsize'
+                        binSize = varargin{arg+1};
+                    otherwise
+                        error(['invalid optional argument: ' varargin{arg}])
+                end
+            end
+            l = zeros(1,length(stimIND));
+            for i = 1:length(stimIND)
+                runs(i) = obj.interpolateRuns(stimIND(i), binSize/1000,'smooth',useSmooth, 'span',span,'smoothmethod',method);
+                l(i) = length(runs(i).time);
+            end
+            minL = min(l);
+            
+            means.time = runs(1).time-10;
+            vTras = zeros(length(runs),minL);
+            vRot = zeros(length(runs),minL);
+            dir = zeros(length(runs),minL);
+            vX1 = zeros(length(runs),minL);
+            vX2 = zeros(length(runs),minL);
+            % calculo los promedios
+            for i = 1:length(runs)
+                vTras(i,:) = runs(i).vTras(1:minL);
+                vRot(i,:) = runs(i).vRot(1:minL);
+                vX1(i,:) = runs(i).vX1(1:minL);
+                vX2(i,:) = runs(i).vX2(1:minL);
+                dir(i,:) = runs(i).dir(1:minL);
+            end
+            
+            means.vTras = mean(vTras,1);
+            means.vRot = mean(vRot,1);
+            means.vX1 = mean(vX1,1);
+            means.vX2 = mean(vX2,1);
+            means.dir = mean(dir,1);
+        end
     end
 end

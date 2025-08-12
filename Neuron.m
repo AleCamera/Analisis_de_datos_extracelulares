@@ -202,9 +202,10 @@ classdef Neuron
             end
         end
         
-        function [freq, t] = getPSH(obj, raster, index, bounds, nBins, varargin)
+        function [freq, tFrecs] = getPSHbyIndex(obj, xlimit, nBins, stimIndex, varargin)
             span = 5;
             method = 'moving';
+            useSmooth = true;
             alphaGaussian = 2.5;
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
@@ -214,16 +215,41 @@ classdef Neuron
                         method = varargin{arg+1};
                     case 'alphagaussian'
                         alphaGaussian = varargin{arg+1};
+                    case 'usesmooth'
+                        useSmooth = varargin{arg+1};
+                end
+            end
+            [raster, index, ~] = obj.getRasters(2, 'durations', [abs(xlimit(1)), abs(xlimit(2))], 'stimIndex', stimIndex);
+            [freq, tFrecs] = obj.getPSH(raster, index, xlimit, nBins, 'smoothspan', span,'smoothmethod',method,'alphagaussian',alphaGaussian,'usesmooth',useSmooth);                      
+        end
+        
+        function [freq, t] = getPSH(obj, raster, index, bounds, nBins, varargin)
+            span = 5;
+            method = 'moving';
+            smoothIt = true; 
+            alphaGaussian = 2.5;
+            for arg = 1:2:length(varargin)
+                switch lower(varargin{arg})
+                    case 'smoothspan'
+                        span = varargin{arg+1};
+                    case 'smoothmethod'
+                        method = varargin{arg+1};
+                    case 'alphagaussian'
+                        alphaGaussian = varargin{arg+1};
+                    case 'usesmooth'
+                        smoothIt = varargin{arg+1};
                 end
             end
             [freq,~] = SyncHist(raster, index,'mode', 'mean' ,'durations',...
                                 bounds, 'nBins', nBins);
-            if strcmp('gaussian',method)
-                w = gausswin(span, alphaGaussian);
-                w = w/sum(w);
-                freq = filtfilt(w, 1, freq);
-            else
-                freq = smooth(freq, span, method);
+            if smoothIt
+                if strcmp('gaussian',method)
+                    w = gausswin(span, alphaGaussian);
+                    w = w/sum(w);
+                    freq = filtfilt(w, 1, freq);
+                else 
+                    freq = smooth(freq, span, method);
+                end
             end
             t = (bounds(1):(bounds(2) - bounds(1))/(nBins):bounds(2))';
             t = t(2:end);
@@ -244,6 +270,16 @@ classdef Neuron
             has = sum(strcmp(screens, screen));
         end
         
+        function [t, ccg, trend] = getAutoCorr(obj)
+            binSize = 1 / 1000;
+            duration = 500 / 1000;
+            span = 3;
+            [ccg, t, ~, ~] = CCG([obj.data; obj.data], [ones(length(obj.data),1); 2*ones(length(obj.data),1)], 'BinSize', binSize, 'Duration', duration, 'mode', 'ccg');
+            ccg = ccg(:,1,2);
+            ccg(t == 0) = 0;
+            trend = smooth(t(t>0),ccg(t>0),span);
+            trend = [flip(trend);0; trend];
+        end
         
         function [t_waves, waves] = getWaveforms(obj)
             %getWaveforms carga la waveform promedio del cluster.
@@ -484,6 +520,39 @@ classdef Neuron
             sFreq.std = std(sFreq.freqs);
             sFreq.err = sFreq.std / sqrt(length(stimIND));
             
+            
+            
+        end
+        
+        function [means, tFreq] = getStimsMean(obj,stimIND,binSize,varargin)
+            ephysSpan = 5;
+            method = 'moving';
+            useSmooth = false;
+            xlim = [];
+            for arg = 1:2:length(varargin)
+                switch lower(varargin{arg})
+                    case 'smoothmethod'
+                        method = varargin{arg+1};
+                    case 'spanephys'
+                        ephysSpan = varargin{arg+1};
+                    case 'usesmooth'
+                        useSmooth = varargin{arg+1};
+                end
+            end
+            
+            if isempty(xlim)
+                xlimit = [-10 obj.stims(stimIND(1)).finish-obj.stims(stimIND(1)).start+10];
+            end
+            nBins = round((xlimit(2)-xlimit(1))*(1000/binSize));
+            
+            freqs = zeros(nBins,length(stimIND));
+            for i = 1:length(stimIND)
+                [freq, tFreq] = obj.getPSHbyIndex(xlimit, nBins,stimIND(i),...
+                    'smoothspan', ephysSpan, 'smoothmethod', method,'usesmooth',useSmooth);
+                freqs(:,i) = freq(1:nBins);
+            end
+            
+            means = mean(freqs,2);
             
             
         end

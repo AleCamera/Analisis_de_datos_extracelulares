@@ -187,8 +187,7 @@ classdef CrabolaEphysRec
             
         end
         
-        
-        function makeMixedPlots(obj, stim, cluster, varargin)
+        function fig = makeMixedPlots(obj, stim, cluster, varargin)
             %makeMixedPlots toma un estimulo y un cluster y devuelve una
             %figura con los graficos apilados de cada trial de ese
             %estimulo. En los graficos se grafica la actividad del cluster
@@ -230,6 +229,7 @@ classdef CrabolaEphysRec
             % 'autotitle'   agrega un titulo a cada subfigura con los datos
             %               Cluster:  Stim:  Trial:  Screen:  Runing:  Nº Spikes:  Date: 
             % 'noephys'     no plotea la respuesta fisiologica
+            % 'spoffset'    elige desde que sublot comenzar a graficar
 
             condition = 'all';
             xlimit = [-10, 15];
@@ -249,6 +249,13 @@ classdef CrabolaEphysRec
             stimPlot = 0;
             rasterPos = 'top';
             rasterPlot = 0;
+            spoffset = 0;
+            plusNSubPlots = 0;
+            stimAlpha = 0.2;
+            runLineWidth = 2;
+            ephysLineWith = 1;
+            ephysLineType = '-';
+            runLineType = '-';
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'condition'
@@ -295,6 +302,20 @@ classdef CrabolaEphysRec
                         rasterPlot = varargin{arg+1};
                     case 'rasterpos'
                         rasterPos = varargin{arg+1};
+                    case 'spoffset'
+                        spoffset = varargin{arg+1};
+                    case 'addnsubplots'
+                        plusNSubPlots = varargin{arg+1};
+                    case 'stimalpha'
+                        stimAlpha = varargin{arg+1};
+                    case 'runlinewidth'
+                        runLineWidth = varargin{arg+1};
+                    case 'ephyslinetype'
+                        ephysLineType = varargin{arg+1};
+                    case 'ephyslinewith'
+                        ephysLineWith = varargin{arg+1};
+                    case 'runlinetype'
+                        runLineType = varargin{arg+1};
                     otherwise
                         error(['invalid optional argument: ' varargin{arg}])
                 end
@@ -311,11 +332,16 @@ classdef CrabolaEphysRec
             for i = unique(index)'
                 disp([' trial ' num2str(i) ' has ' num2str(sum(index == i)) ' spikes'])
             end
-                
+            
             lTopLimit = 0;
             rTopLimit = 0;
-            if makeFig
-                figure('Renderer', 'painters', 'Position', [10 10 560 825]);
+            if isa(makeFig,'matlab.ui.Figure')
+                fig = makeFig;
+            elseif makeFig
+                fig = figure('Renderer', 'painters', 'Position', [10 10 560 825]);
+            else
+                fig = findobj('Type','figure');
+                fig = fig(end);
             end
             
             if addTitle
@@ -331,7 +357,7 @@ classdef CrabolaEphysRec
             freqs = [];
             for ns = 1:length(stimIND)
                 s = stimIND(ns);
-                ax{ns} = subplot(nSubPlots, 1,ns);
+                ax{ns} = subplot(nSubPlots+plusNSubPlots, 1,ns+spoffset);
                 axes(ax{ns})
                 hold on
                 run = obj.ball.interpolateRuns(s, binSize/1000);
@@ -348,7 +374,8 @@ classdef CrabolaEphysRec
                 
                 if ~isempty(runPar)
                     yyaxis left
-                    plot(run.time-behavDelay, smooth(runPar, ballSpan, method), "-",'linewidth', 2)
+%                     if obj.stims(s).
+                    plot(run.time-behavDelay, smooth(runPar, ballSpan, method), runLineType,'linewidth', runLineWidth)
                 end
                 if lTopLimit < max(ylim)
                     lTopLimit = max(ylim);
@@ -359,11 +386,9 @@ classdef CrabolaEphysRec
                 end
                 if ~noephys
                     [raster, index, ~] = obj.neurons(cluster).getRasters(2, 'durations', [abs(xlimit(1)), abs(xlimit(2))], 'stimIndex', s);
-    %                 [freq,~] = SyncHist(raster(index == ns), index(index==ns),'mode', 'mean' ,'durations',...
-    %                                     [xlimit(1); xlimit(2)], 'nBins', nBins);
-                    assignin('base','raster',raster)
-                    [freq, t] = obj.neurons(cluster).getPSH(raster, index, xlimit, nBins);
 
+                    [freq, t] = obj.neurons(cluster).getPSH(raster, index, xlimit, nBins);
+                    
                     freq = smooth(freq, ephysSpan, method);
     %                 t = (xlimit(1):(xlimit(2) - xlimit(1))/(nBins-1):xlimit(2))';
                     if isempty(freq)
@@ -373,7 +398,7 @@ classdef CrabolaEphysRec
                         freqs(:,ns) = freq;
                     end
                     yyaxis right
-                    plot(t, freq)
+                    plot(t, freq,ephysLineType,'linewidth',ephysLineWith)
                     if ns == round(length(stimIND)/2)
                         ylabel('firing freq (Hz)');
                     end
@@ -394,7 +419,8 @@ classdef CrabolaEphysRec
                            ' Screen: ' num2str(obj.stims(stimIND(ns)).screen) ...
                            ' Runing: ' pool{obj.stims(stimIND(ns)).running+1} ...
                            ' Nº Spikes: ' num2str(length(raster)) ...
-                           ' Date: ' obj.date]);
+                           ' Date: ' obj.date ...
+                           ' ID: ' num2str(obj.crabID)]);
                 end
             end
             
@@ -412,17 +438,17 @@ classdef CrabolaEphysRec
                     runningMean = mean(freqs(:,runningTrials), 2);
                     airMean = mean(freqs(:,airTrials), 2);
                     hold on
-                    subplot(nSubPlots, 1,ns+1)
+                    subplot(nSubPlots+1+plusNSubPlots, 1,ns+1+spoffset)
                     yyaxis right
-                    plot(t, runningMean, '-b', t, airMean, '-r', 'linewidth', 2);
+                    plot(t, runningMean, '-b', t, airMean, '-r', 'linewidth', runLineWidth);
                 end
             elseif plotMean == 2
                 
             end
             
             for ns = 1:nSubPlots
-                subplot(nSubPlots, 1,ns)
-                if ns < nSubPlots
+                subplot(nSubPlots+plusNSubPlots, 1,ns+spoffset)
+                if ns <= nSubPlots
                     s = stimIND(ns);
                 end
                 yyaxis left
@@ -434,20 +460,21 @@ classdef CrabolaEphysRec
                     case 1
                         PlotRasters_oneColor(raster(index == ns), index(index==ns),[-10, 15], max(ylim), 'RelativeSize', 0.1, 'position', rasterPos)
                 end
-                yyaxis right
                 
+                % Ploteo los estimulos
+                yyaxis right
                 if isfield(obj.stims,'reg')
-                    disp('reg es campo de stims')
+                    %disp('reg es campo de stims')
                     if ~isempty(obj.stims(s).reg)
-                        disp('reg no esta vacio')
+                        %disp('reg no esta vacio')
                         switch stimPlot
                             case 1
-                                obj.plotShade(obj.stims(s).reg(:,1)',obj.stims(s).reg(:,2)','rigth',1,'stimmax',rTopLimit,'alpha',0.2);
+                                obj.plotShade(obj.stims(s).reg(:,1)',obj.stims(s).reg(:,2)','rigth',1,'stimmax',rTopLimit,'alpha',stimAlpha);
                             case 2
                                 y = rTopLimit*obj.stims(s).reg(:,1)'/max(obj.stims(s).reg(:,1));
                                 plot([-5 obj.stims(s).reg(:,2)' obj.stims(s).reg(end,2)'+5],[y(1) y y(end)],"--k");
                             case 3
-                                obj.plotShade(obj.stims(s).reg(:,1)',obj.stims(s).reg(:,2)','rigth',1,'stimmax',rTopLimit*0.2,'alpha',0.2,'yoffset',0.8*rTopLimit);
+                                obj.plotShade(obj.stims(s).reg(:,1)',obj.stims(s).reg(:,2)','rigth',1,'stimmax',rTopLimit*0.2,'alpha',stimAlpha,'yoffset',0.8*rTopLimit);
                         end
                     end
                 end
@@ -459,7 +486,516 @@ classdef CrabolaEphysRec
             end
         end
         
+        function [fig, corr] = plotCrossCorrBallEpys(obj,stimCode,cluster,varargin)
+            binSize = 50;
+            xlimi = [];
+            bytrial = false;
+            ballSpan = 10;
+            ephysSpan = 10;
+            method = 'loess';
+            behavDelay = 10;
+            titleTxt = [];
+            behavior = 'tras';
+            makeFig = true;
+            nSP = 1;
+            kSP = 1;
+            runLineWidth = 2;
+            ephysLineWith = 1;
+            ephysLineType = '-';
+            runLineType = '-';
+            autotitle = false;
+            diffCrossCorr = false;
+            corr = [];
+            rTopLimit= 0;
+            fTopLimit= 0;
+            windowCrosCorr = 6;
+            plotData = false;
+            mergeStims = 0;
+            figPoss = [68     5   701   991];
+            autoXLimit = false;
+            for arg = 1:2:length(varargin)
+                switch lower(varargin{arg})
+                    case 'xlim'
+                        xlimi = varargin{arg+1};
+                    case 'binsize'
+                        binSize = varargin{arg+1};
+                    case 'title'
+                        titleTxt = varargin{arg+1};
+                    case 'behavior'
+                        if sum(strcmp({'tras', 'rot', 'dir'}, varargin{arg+1}))==1
+                            behavior = varargin{arg+1};
+                        else
+                            error('invalid "behavior", only "all", "ball" and "air" are permited')
+                        end
+                    case 'makefig'
+                        makeFig = varargin{arg+1};
+                    case 'smoothmethod'
+                        method = varargin{arg+1};
+                    case 'spanephys'
+                        ephysSpan = varargin{arg+1};
+                    case 'spanball'
+                        ballSpan = varargin{arg+1};
+                    case 'behavdelay'
+                        behavDelay = varargin{arg+1};
+                    case 'autotitle'
+                        autotitle = varargin{arg+1};
+                    case 'runlinewidth'
+                        runLineWidth = varargin{arg+1};
+                    case 'runlinetype'
+                        runLineType = varargin{arg+1};
+                    case 'ephyslinetype'
+                        ephysLineType = varargin{arg+1};
+                    case 'ephyslinewith'
+                        ephysLineWith = varargin{arg+1};
+                    case 'diffcrosscorr'
+                        diffCrossCorr = varargin{arg+1};
+                        nSP = 2;
+                    case 'bytrial'
+                        bytrial = varargin{arg+1};
+                    case 'windowcroscorr'
+                        windowCrosCorr = varargin{arg+1};
+                    case 'plotdata'
+                        plotData = varargin{arg+1};
+                    case 'mergestims'
+                        mergeStims = varargin{arg+1};
+                    case 'figposs'
+                        figPoss = varargin{arg+1};
+                    case 'autoxlimit'
+                        autoXLimit = varargin{arg+1};
+                    otherwise
+                        error(['invalid optional argument: ' varargin{arg}])
+                end
+            end
+            
+            kSP = kSP + plotData;
+            
+            if bytrial
+                stimIND = stimCode;
+            else
+                stimIND = obj.getStimIndex(stimCode, 'condition', 'all');
+            end
+            
+            if isempty(xlimi)
+                maxStimLength = max([[obj.stims(stimIND).finish] - [obj.stims(stimIND).start]]);
+                xlimit = [-10 maxStimLength+10];
+            elseif ~autoXLimit
+                xlimit = xlimi;
+            end
+            
+            
+            
+            if isa(makeFig,'matlab.ui.Figure')
+                fig = makeFig;
+            elseif makeFig
+                fig = figure('Renderer', 'painters', 'Position', [10 10 560 825]);
+            else
+                fig = findobj('Type','figure');
+                fig = fig(end);
+            end
+            fig.Position = figPoss;
+            
+            if autotitle
+                sgtitle([' Cluster: ' num2str(cluster) ...
+                ' Date: ' obj.date ...
+                ' ID: ' num2str(obj.crabID)]);
+            elseif ~isempty(titleTxt)
+                sgtitle(titleTxt)
+            end
+            
+            nStims = length(stimIND);
+            
+            nXSP = (nSP*nStims)+(mergeStims*nSP);
+            
+            allData = [];
+            
+            for i = 1:nStims
+                si = stimIND(i);
+                % Datos de lectrofisiologia
+                if autoXLimit
+                    xlimit = [-10 obj.stims(stimIND).finish-obj.stims(stimIND).start+10];
+                end
+                nBins = round((xlimit(2)-xlimit(1))*(1000/binSize));
+                [freq, tFrecs] = obj.neurons(cluster).getPSHbyIndex(xlimit, nBins,si, 'smoothspan', ephysSpan, 'smoothmethod', method);
+
+                % Datos de crabola
+                run = obj.ball.interpolateRuns(si, binSize/1000);
+                
+                if strcmp(behavior, 'tras')
+                    runPar = run.vTras;
+                    behLabel = 'traslational speed (cm/s)';
+                elseif strcmp(behavior, 'rot')
+                    runPar = run.vRot;
+                    behLabel = 'rotational speed (deg/s)';
+                else
+                    runPar = run.Dir;
+                    behLabel = 'direction (deg)';
+                end
+                               
+                tRun = [run.time-behavDelay]';
+                tRun(1) = [];
+                runPar = smooth(runPar, ballSpan, method);
+                runPar(1) = [];
+             
+                % acomodo el largo de los vectores
+                if length(tRun)>length(tFrecs)
+                    tRun(length(tFrecs)+1:end) = [];
+                    runPar(length(freq)+1:end) = [];
+                elseif length(tRun)<length(tFrecs)
+                    tFrecs(length(tRun)+1:end) = [];
+                    freq(length(runPar)+1:end) = [];
+                end
+                
+                if diffCrossCorr
+                    % Croscorelacion de las derivadas
+                    % derivadas
+                    diffRunPar = diff(runPar);
+                    diffRunPar = smooth(diffRunPar, ballSpan, method);
+                    diffRunPar = padarray(diffRunPar,[length(runPar)-length(diffRunPar) 0],0,"post");
+                    diffFrecs = diff(freq);
+                    diffFrecs = smooth(diffFrecs, ballSpan, method);
+                    diffFrecs = padarray(diffFrecs,[length(freq)-length(diffFrecs) 0],0,"post");
+                    
+                    if isempty(allData)
+                        allData = [tRun, runPar, freq, diffRunPar, diffFrecs];
+                    else
+                        allData = [allData; [tRun+allData(end,1), runPar, freq, diffRunPar, diffFrecs]];
+                    end
+                else
+                    if isempty(allData)
+                        allData = [tRun, runPar, freq];
+                    else
+                        allData = [allData; [tRun+allData(end,1), runPar, freq]];
+                    end
+                end
+                
+                % Figura de los datos a procesar
+                figure(fig)
+                
+                if plotData
+                    subplot(nXSP,kSP,1+(nSP*kSP*(i-1)))
+                    yyaxis left
+                    plot(tFrecs,freq,ephysLineType,'linewidth',ephysLineWith)
+                    ylabel("Run [cm/s]")
+                    ylim([0 max(freq)])
+                    yyaxis right
+                    plot(tRun,runPar,runLineType,'linewidth',runLineWidth)
+                    ylabel("Ephys [Hz]")
+                    ylim([0 max(runPar)])
+                    if autotitle
+                        title(['Filtered Data: Stm: ' num2str(obj.stims(si).code) ...
+                            ' Tri: ' num2str(si) ...
+                            ' Scr: ' num2str(obj.stims(si).screen)]);
+                    end
+                end
+                
+                % CrossCorrelacion
+                [xcf, lags, bound] = obj.crosscorr(runPar,freq,'window',windowCrosCorr,'binsize',binSize);
+
+                subplot(nXSP,kSP,kSP+(nSP*kSP*(i-1)))
+                hold on
+                stairs(lags*binSize/1000,xcf);
+                yline(bound(1),'r',['s = ' num2str(bound(1),2)]);
+
+                [maxXcf, maxXcfInd] = max(xcf);
+                [minXcf, minXcfInd] = min(xcf);
+                
+                if abs(maxXcf) < abs(minXcf)
+                   maxXcf = minXcf;
+                   maxXcfInd = minXcfInd;
+                end
+                if maxXcf<0
+                   ylim([maxXcf*1.5 -maxXcf*1.5])
+                else
+                    ylim([-maxXcf*1.5 maxXcf*1.5])
+                end
+                
+                tMaxXcf = lags(maxXcfInd)*binSize/1000;
+                
+                xctlh = xline(tMaxXcf,'b',{'t = ', num2str(tMaxXcf,2)});
+                yctlh = yline(maxXcf,'g',{'r = ', num2str(maxXcf,2)});
+
+                fixHLineText(xctlh,8,[-windowCrosCorr windowCrosCorr],[0 1],tMaxXcf,maxXcf);
+                fixHLineText(yctlh,8,[-windowCrosCorr windowCrosCorr],[0 1],tMaxXcf,maxXcf);
+                
+                ylim([-1 1])
+                ylabel('p Value')
+                xlabel('t [s]')
+                corr = [corr;si maxXcf  tMaxXcf];
+                disp(['Maxcorr=' num2str(maxXcf) ' t=' num2str(tMaxXcf)]);
+                
+                if autotitle
+                    title(['Cross-Correlogram: Stm: ' num2str(obj.stims(si).code) ...
+                            ' Tri: ' num2str(si) ...
+                            ' Scr: ' num2str(obj.stims(si).screen)]);
+                end
+
+                if diffCrossCorr
+                    % ploteo datos
+
+                    if plotData
+                        subplot(nXSP,kSP,3+(nSP*kSP*(i-1)))
+                        yyaxis left
+                        plot(tFrecs,diffFrecs,ephysLineType,'linewidth',ephysLineWith)
+                        ylabel("Run [cm/s²]")
+                        ylim([-max(diffFrecs)*1.5 max(diffFrecs)*1.5])
+                        yyaxis right
+                        plot(tRun,diffRunPar,runLineType,'linewidth',runLineWidth)
+                        ylabel("Ephys [dHz]")
+                        ylim([-max(diffRunPar)*1.5 max(diffRunPar)*1.5])
+                        xlabel('t [s]')
+                        if autotitle
+                            title(['Filtered Data: Stm: ' num2str(obj.stims(si).code) ...
+                            ' Tri: ' num2str(si) ...
+                            ' Scr: ' num2str(obj.stims(si).screen)]);
+                        end
+                    end
+                    
+                    % croscorelacion
+                    [diffXcf, diffLags, diffBound] = obj.crosscorr(runPar,freq,'window',windowCrosCorr,'binsize',binSize);
+                    
+                    subplot(nXSP,kSP,(2*kSP)+(nSP*kSP*(i-1)))
+                    hold on
+                    stairs(diffLags*binSize/1000,diffXcf);
+                    yline(diffBound(1),'r',['-s = ' num2str(-bound(2),2)]);
+                    [maxXcf, maxXcfInd] = max(diffXcf);
+                    [minXcf, minXcfInd] = min(diffXcf);
+                    
+                    if abs(maxXcf) < abs(minXcf)
+                       maxXcf = minXcf;
+                       maxXcfInd = minXcfInd;
+                    end
+                    if maxXcf<0
+                       ylim([maxXcf*1.5 -maxXcf*1.5])
+                    else
+                        ylim([-maxXcf*1.5 maxXcf*1.5])
+                    end
+                    tMaxXcf = lags(maxXcfInd)*binSize/1000;
+                    
+                    xctlh = xline(tMaxXcf,'b',{'t = ', num2str(tMaxXcf,2)});
+                    yctlh = yline(maxXcf,'g',{'r = ', num2str(maxXcf,2)});
+                    
+                    fixHLineText(xctlh,8,[-windowCrosCorr windowCrosCorr],[-maxXcf*1.5 maxXcf*1.5],tMaxXcf,maxXcf);
+                    fixHLineText(yctlh,8,[-windowCrosCorr windowCrosCorr],[-maxXcf*1.5 maxXcf*1.5],tMaxXcf,maxXcf);
+                    
+                    ylabel('p Value')
+                    xlabel('t [s]')
+                    
+
+                    if autotitle
+                        title(['Cross-Correlogram: Stm: ' num2str(obj.stims(si).code) ...
+                            ' Tri: ' num2str(si) ...
+                            ' Scr: ' num2str(obj.stims(si).screen)]);
+                    end
+                    
+                    disp(['MaxDiffCorr=' num2str(maxXcf) ' t=' num2str(lags(maxXcfInd)*binSize/1000)]);
+                    corr = [corr; si maxXcf lags(maxXcfInd)*binSize/1000];
+                end
+            end
+            if mergeStims
+                if plotData
+                    subplot(nXSP,kSP,1+(nSP*kSP*(i)))
+                    yyaxis left
+                    plot(allData(:,1),allData(:,3),ephysLineType,'linewidth',ephysLineWith)
+                    ylabel("Run [cm/s]")
+                    ylim([0 max(allData(:,3))])
+                    yyaxis right
+                    plot(allData(:,1),allData(:,2),runLineType,'linewidth',runLineWidth)
+                    ylabel("Ephys [Hz]")
+                    ylim([0 max(allData(:,2))])
+                    if autotitle
+                        title('All stim filtered Data');
+                    end
+                end
+                [xcf, lags, bound] = obj.crosscorr(allData(:,2),allData(:,3),'window',windowCrosCorr,'binsize',binSize);
+
+                subplot(nXSP,kSP,kSP+(nSP*kSP*(i)))
+                stairs(lags*binSize/1000,xcf);
+                yline(bound(1),'r',['s = ' num2str(bound(1),2)]);
+                hold on 
+                
+                [maxXcf, maxXcfInd] = max(xcf);
+                [minXcf, minXcfInd] = min(xcf);
+                
+                if abs(maxXcf) < abs(minXcf)
+                   maxXcf = minXcf;
+                   maxXcfInd = minXcfInd;
+                end
+                if maxXcf<0
+                   ylim([maxXcf*1.5 -maxXcf*1.5])
+                else
+                    ylim([-maxXcf*1.5 maxXcf*1.5])
+                end
+                tMaxXcf = lags(maxXcfInd)*binSize/1000;
+%                 scatter(lags(maxXcfInd)*binSize/1000,maxXcf*1.2,'v');
+                xctlh = xline(tMaxXcf,'b',{'t = ', num2str(tMaxXcf,2)});
+                yctlh = yline(maxXcf,'g',{'r = ', num2str(maxXcf,2)});
+
+                fixHLineText(xctlh,8,[-windowCrosCorr windowCrosCorr],[0 1],tMaxXcf,maxXcf);
+                fixHLineText(yctlh,8,[-windowCrosCorr windowCrosCorr],[0 1],tMaxXcf,maxXcf);
+                    
+                ylim([-1 1])
+                
+                if autotitle
+                    title(['All stim Cross-Correlation'])
+                end
+                
+                corr = [corr;0 maxXcf lags(maxXcfInd)*binSize/1000];
+                disp(['Maxcorr=' num2str(maxXcf) ' t=' num2str(lags(maxXcfInd)*binSize/1000)]);
+                
+                
+                
+                if diffCrossCorr
+                    if plotData
+                        subplot(nXSP,kSP,3+(nSP*kSP*(i)))
+                        yyaxis left
+                        plot(allData(:,1),allData(:,5),ephysLineType,'linewidth',ephysLineWith)
+                        ylabel("Run [cm/s²]")
+                        ylim([-max(allData(:,5)) max(allData(:,5))])
+                        yyaxis right
+                        plot(allData(:,1),allData(:,4),runLineType,'linewidth',runLineWidth)
+                        ylabel("Ephys [dHz]")
+                        ylim([-max(allData(:,4)) max(allData(:,4))])
+                        if autotitle
+                            title('All stim filtered differential Data');
+                        end
+                    end
+                    
+                    % croscorelacion
+                    [diffXcf, diffLags, diffBound] = obj.crosscorr(allData(:,4),allData(:,5),...
+                                                                    'window',windowCrosCorr,'binsize',binSize);
+                    subplot(nXSP,kSP,2*kSP+(nSP*kSP*(i)))
+                    stairs(diffLags*binSize/1000,diffXcf);
+                    yline(diffBound(1),'r',['s = ' num2str(diffBound(1),2)]);
+                    [maxXcf, maxXcfInd] = max(diffXcf);
+                    [minXcf, minXcfInd] = min(diffXcf);
+                    hold on
+                    if abs(maxXcf) < abs(minXcf)
+                       maxXcf = minXcf;
+                       maxXcfInd = minXcfInd;
+                    end
+                    tMaxXcf = lags(maxXcfInd)*binSize/1000;
+                    xctlh = xline(tMaxXcf,'b',{'t = ', num2str(tMaxXcf,2)});
+                    yctlh = yline(maxXcf,'g',{'r = ', num2str(maxXcf,2)});
+                    
+                    fixHLineText(xctlh,8,[-windowCrosCorr windowCrosCorr],[-maxXcf*1.5 maxXcf*1.5],tMaxXcf,maxXcf);
+                    fixHLineText(yctlh,8,[-windowCrosCorr windowCrosCorr],[-maxXcf*1.5 maxXcf*1.5],tMaxXcf,maxXcf);
+                    if maxXcf<0
+                    	ylim([maxXcf*1.5 -maxXcf*1.5])
+                    else
+                        ylim([-maxXcf*1.5 maxXcf*1.5])
+                    end
+                    
+                    if autotitle
+                        title(['All stim differential Cross-Correlation'])
+                    end
+                    
+                    disp(['MaxDiffCorr=' num2str(maxXcf) ' t=' num2str(lags(maxXcfInd)*binSize/1000)]);
+                    corr = [corr; 0 maxXcf lags(maxXcfInd)*binSize/1000];
+                end
+            end
+            
+        end
         
+        function [xcf, lags, bound] = crosscorr(obj,x1,x2,varargin)
+            windowCrosCorr = 6;%s
+            numStd = 3;
+            binSize = 50;
+            for arg = 1:2:length(varargin)
+                switch lower(varargin{arg})
+                    case 'window'
+                        windowCrosCorr = varargin{arg+1};
+                    case 'numstd'
+                        numStd = varargin{arg+1};
+                    case 'binsize'
+                        binSize = varargin{arg+1};
+                end
+            end
+            
+            numLags = round(windowCrosCorr*1000/binSize);
+            [xcf,lags,bound] = crosscorr(x1,x2,'NumLags',numLags,'NumSTD',numStd);
+        end
+        
+        function means = getStimClusterMean(obj,stimCode,cluster,varargin)
+            condition = 'all';
+            screens = [];
+            stimIND = [];
+            useSmooth = false;
+            ephysSpan = 5;
+            ballSpan = 5;
+            method = 'moving';
+            binSize = 50;
+            for arg = 1:2:length(varargin)
+                switch lower(varargin{arg})
+                    case 'condition'
+                        if sum(strcmp({'all', 'ball', 'air'}, varargin{arg+1}))
+                             condition = varargin{arg+1};
+                        elseif varargin{arg+1} == 0
+                            condition = 'air';
+                        elseif varargin{arg+1} == 1
+                            condition = 'ball';
+                        else
+                            error('invalid "condition", only "0-1", "all", "ball" and "air" are permited')
+                        end
+                    case 'screens'
+                        screens = varargin{arg+1};
+                    case 'smooth'
+                        useSmooth = varargin{arg+1};
+                    case 'spanephys'
+                        ephysSpan = varargin{arg+1};
+                    case 'spanball'
+                        ballSpan = varargin{arg+1};
+                    case 'smoothmethod'
+                        method = varargin{arg+1};
+                    case 'binsize'
+                        binSize = varargin{arg+1};
+                    case 'trials'
+                        stimIND = varargin{arg+1};
+                end
+            end
+            
+            if isempty(stimIND)
+                stimIND = obj.getStimIndex(stimCode, 'condition', condition, 'screens', screens);
+            end
+            
+            means = obj.ball.getStimsMean(stimIND,'smooth', useSmooth, 'span', ballSpan, 'smoothmethod', method, 'binsize',binSize);
+            [meansFreq, tFreq] = obj.neurons(cluster).getStimsMean(stimIND,binSize,'smoothmethod',method,...
+                'spanephys',ephysSpan,'usesmooth',useSmooth);
+            means.meansFreq = meansFreq';
+            
+            if means.time(1) < tFreq(1)
+                [~,minI] = nearestValue(means.time,tFreq(1));
+                if minI > 1
+                    means.time = means.time(minI:end);
+                    means.vRot = means.vRot(minI:end);
+                    means.vTras = means.vTras(minI:end);
+                    means.vX1 = means.vX1(minI:end);
+                    means.vX2 = means.vX2(minI:end);
+                    means.dir = means.dir(minI:end);
+                end
+            elseif means.time(1) > tFreq(1)
+                [~,minI] = nearestValue(tFreq,means.time(1));
+                means.meansFreq = means.meansFreq(minI:end);
+                tFreq = tFreq(minI:end);
+            end
+            if means.time(end) > tFreq(end)
+                [~,maxI] = nearestValue(means.time,tFreq(end));
+                if maxI < length(means.time)
+                    means.time = means.time(1:maxI);
+                    means.vRot = means.vRot(1:maxI);
+                    means.vTras = means.vTras(1:maxI);
+                    means.vX1 = means.vX1(1:maxI);
+                    means.vX2 = means.vX2(1:maxI);
+                    means.dir = means.dir(1:maxI);
+                end
+            elseif means.time(end) < tFreq(end)
+                [~,maxI] = nearestValue(tFreq,means.time(end));
+                if maxI < lenght(tFreq)
+                    means.meansFreq = means.meansFreq(1:maxI);
+                    tFreq = tFreq(1:maxI);
+                end
+            end
+            
+        end
         
         function neurons = loadClusters(obj, path, varargin)
             % loadClusters toma el path de la carpeta donde estan los
@@ -482,12 +1018,25 @@ classdef CrabolaEphysRec
             end
             cd (path)
             
+            fileList = dir(path);
             %cargo los estimulos
-            load('Estimulos.mat');
+            if any(contains({fileList.name},'Estimulos.mat'))
+                load('Estimulos.mat');
+            else
+                disp('No existe Estimulos.mat en este directorio')
+                [filename, pathname] = uigetfile('Estimulos.mat','/media/usuario/Disco/Usuario/Desktop/Matias/Datos');
+                load(fullfile(pathname,filename))
+            end
             %cargo los monitores
-            load('Monitores.mat');
+            if any(contains({fileList.name},'Monitores.mat'))
+                load('Monitores.mat');
+            else
+                disp('No existe Monitores.mat en este directorio')
+                [filename, pathname] = uigetfile('Monitores.mat','/media/usuario/Disco/Usuario/Desktop/Matias/Datos');
+                load(fullfile(pathname,filename))
+            end
 
-            %% Levanto los datos de los clusters
+            % Levanto los datos de los clusters
             id = path(end-7:end);
             %busco el archivo .clu (contiene el cluster asignado a cada spike) en la
             %carpeta del experimento
@@ -671,7 +1220,7 @@ classdef CrabolaEphysRec
             
             %devuelve un struct con los las frecuencias de disparo del
             %cluster seleccionado para todos los trials del estimulos
-            %seleccionado bajo el capo de "fRates". El vector de tiempo en
+            %seleccionado bajo el campo de "fRates". El vector de tiempo en
             %el cmapo "t_ephys" y las corridas de la crabola en el campo 
             %"runs".
             %
