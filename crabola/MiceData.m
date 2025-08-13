@@ -109,33 +109,40 @@ classdef MiceData
                         error(['invalid optional argument: ' varargin{arg}])
                 end
             end
+            runs = obj.interpolateRuns(stimIND, binSize/1000,'smooth',useSmooth, 'span',span,'smoothmethod',method);
             l = zeros(1,length(stimIND));
             for i = 1:length(stimIND)
-                runs(i) = obj.interpolateRuns(stimIND(i), binSize/1000,'smooth',useSmooth, 'span',span,'smoothmethod',method);
                 l(i) = length(runs(i).time);
             end
-            minL = min(l);
             
+            minL = min(l);
             means.time = runs(1).time-10;
+           n = length(runs);
             vTras = zeros(length(runs),minL);
             vRot = zeros(length(runs),minL);
-            dir = zeros(length(runs),minL);
+            dirComp = zeros(length(runs),minL);
             vX1 = zeros(length(runs),minL);
             vX2 = zeros(length(runs),minL);
             % calculo los promedios
-            for i = 1:length(runs)
+            for i = 1:n
                 vTras(i,:) = runs(i).vTras(1:minL);
                 vRot(i,:) = runs(i).vRot(1:minL);
                 vX1(i,:) = runs(i).vX1(1:minL);
                 vX2(i,:) = runs(i).vX2(1:minL);
-                dir(i,:) = runs(i).dir(1:minL);
+                dirComp(i,:) = exp(i * deg2rad(runs(i).dir(1:minL))); % Convert to complex numbers
             end
+
+            vTrasStd = std(vTras,1,1);
+            means.vTras = [mean(vTras,1);vTrasStd;vTrasStd/sqrt(n)];
+            vRotStd = std(vRot,1,1);
+            means.vRot = [mean(vRot,1);vRotStd;vRotStd/sqrt(n)];
+            vX1Std = std(vX1,1,1);
+            means.vX1 = [mean(vX1,1);vX1Std;vX1Std/sqrt(n)];
+            vX2Std = std(vX1,1,1);
+            means.vX2 = [mean(vX2,1);vX2Std;vX2Std/sqrt(n)];
+            dirStd = std(dirComp,1,1);
+            means.dir = [rad2deg(angle(mean(dirComp,1)));rad2deg(angle(dirStd));rad2deg(angle(dirStd/n)) ]; % Convert back to degrees
             
-            means.vTras = mean(vTras,1);
-            means.vRot = mean(vRot,1);
-            means.vX1 = mean(vX1,1);
-            means.vX2 = mean(vX2,1);
-            means.dir = mean(dir,1);
         end
     end
 end

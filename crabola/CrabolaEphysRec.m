@@ -915,7 +915,7 @@ classdef CrabolaEphysRec
             [xcf,lags,bound] = crosscorr(x1,x2,'NumLags',numLags,'NumSTD',numStd);
         end
         
-        function means = getStimClusterMean(obj,stimCode,cluster,varargin)
+        function mixData = getStimClusterMean(obj,stimCode,cluster,varargin)
             condition = 'all';
             screens = [];
             stimIND = [];
@@ -958,23 +958,23 @@ classdef CrabolaEphysRec
             end
             
             means = obj.ball.getStimsMean(stimIND,'smooth', useSmooth, 'span', ballSpan, 'smoothmethod', method, 'binsize',binSize);
-            [meansFreq, tFreq] = obj.neurons(cluster).getStimsMean(stimIND,binSize,'smoothmethod',method,...
+            [meansFreq,, t] = obj.neurons(cluster).getStimsMean(stimIND,binSize,'smoothmethod',method,...
                 'spanephys',ephysSpan,'usesmooth',useSmooth);
             means.meansFreq = meansFreq';
             
             if means.time(1) < tFreq(1)
                 [~,minI] = nearestValue(means.time,tFreq(1));
                 if minI > 1
-                    means.time = means.time(minI:end);
-                    means.vRot = means.vRot(minI:end);
-                    means.vTras = means.vTras(minI:end);
-                    means.vX1 = means.vX1(minI:end);
-                    means.vX2 = means.vX2(minI:end);
-                    means.dir = means.dir(minI:end);
+                    means.time = means.time(:,minI:end);
+                    means.vRot = means.vRot(:,minI:end);
+                    means.vTras = means.vTras(:,minI:end);
+                    means.vX1 = means.vX1(:,minI:end);
+                    means.vX2 = means.vX2(:,minI:end);
+                    means.dir = means.dir(:,minI:end);
                 end
             elseif means.time(1) > tFreq(1)
                 [~,minI] = nearestValue(tFreq,means.time(1));
-                means.meansFreq = means.meansFreq(minI:end);
+                means.meansFreq = means.meansFreq(:,minI:end);
                 tFreq = tFreq(minI:end);
             end
             if means.time(end) > tFreq(end)
@@ -994,7 +994,6 @@ classdef CrabolaEphysRec
                     tFreq = tFreq(1:maxI);
                 end
             end
-            
         end
         
         function neurons = loadClusters(obj, path, varargin)
