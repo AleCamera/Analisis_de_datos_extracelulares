@@ -537,7 +537,7 @@ classdef Neuron
             span = 5;
             method = 'moving';
             smoothIt = false;
-            binSize = 5;
+            binSize = 50;
             xlimi = [];
             alphaGaussian = 2.5;
             for arg = 1:2:length(varargin)
@@ -571,8 +571,8 @@ classdef Neuron
                     'alphagaussian',alphaGaussian,'usesmooth',smoothIt);
                 freqs(:,i) = f; 
             end
-            s = std(freqs,1,2);
-            means = [mean(freqs,2)',s,s/sqrt(n)];
+            s = std(freqs,1,2)';
+            means = [mean(freqs,2)';s;s/sqrt(n)];
 
         end
     end
