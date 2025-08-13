@@ -75,10 +75,10 @@ classdef MiceData
                     dir = angTo360(dir);
                     if useSmooth
                         vTras = smooth(vTras, span, method);
-                        %vRot = smooth(vRot, span, method);
+                        vRot = smooth(vRot, span, method);
                         %dir = smooth(dir, span, method);
-                        %vX1 = smooth(vX1, span, method);
-                        %vX2 = smooth(vX2, span, method);
+                        vX1 = smooth(vX1, span, method);
+                        vX2 = smooth(vX2, span, method);
                     end
                         
                     intpRuns(nr).vTras = vTras;
