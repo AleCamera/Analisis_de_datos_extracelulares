@@ -165,13 +165,18 @@ classdef CrabolaEphysRec
             % until the filter is selected.
             
             % Filter by code
-            whereCodes = ones(1,length(obj.stims));
+            nStims = length([obj.stims]);
             if ~isempty(stimCodes)
-                whereCodes = ismember([obj.stims.code], stimCodes);
+                whereCodes = zeros(1,nStims);
+                for c = stimCodes
+                    whereCodes = whereCodes | ismember([obj.stims.code], c);
+                end
+            else
+                whereCodes = ones(1,nStims);
             end
             
             % Filter by runing codition
-            whereRuning = ones(1,length(obj.stims));
+            whereRuning = ones(1,nStims);
             if strcmp(condition, 'ball')
                 whereRuning = ismember([obj.stims.running], 1);
             elseif strcmp(condition, 'air')
@@ -179,9 +184,11 @@ classdef CrabolaEphysRec
             end
             
             %Filter by screen
-            whereScreen = ones(1,length(obj.stims));
+            
             if ~isempty(screens)
                 whereScreen = ismember([obj.stims.screen], screens);
+            else
+                whereScreen = ones(1,nStims);
             end
             stimIND = find(whereCodes&whereRuning&whereScreen);
             
@@ -374,7 +381,6 @@ classdef CrabolaEphysRec
                 
                 if ~isempty(runPar)
                     yyaxis left
-%                     if obj.stims(s).
                     plot(run.time-behavDelay, smooth(runPar, ballSpan, method), runLineType,'linewidth', runLineWidth)
                 end
                 if lTopLimit < max(ylim)
@@ -615,7 +621,7 @@ classdef CrabolaEphysRec
                     xlimit = [-10 obj.stims(stimIND).finish-obj.stims(stimIND).start+10];
                 end
                 nBins = round((xlimit(2)-xlimit(1))*(1000/binSize));
-                [freq, tFrecs] = obj.neurons(cluster).getPSHbyIndex(xlimit, nBins,si, 'smoothspan', ephysSpan, 'smoothmethod', method);
+                [freq, tFrecs] = obj.neurons(cluster).getPSHbyIndex(xlimit, nBins,si, 'smoothspan', ephysSpan, 'smoothmethod', method, 'usesmooth',true);
 
                 % Datos de crabola
                 run = obj.ball.interpolateRuns(si, binSize/1000);
@@ -674,13 +680,13 @@ classdef CrabolaEphysRec
                 if plotData
                     subplot(nXSP,kSP,1+(nSP*kSP*(i-1)))
                     yyaxis left
-                    plot(tFrecs,freq,ephysLineType,'linewidth',ephysLineWith)
-                    ylabel("Run [cm/s]")
-                    ylim([0 max(freq)])
-                    yyaxis right
                     plot(tRun,runPar,runLineType,'linewidth',runLineWidth)
+                    ylabel("Run [cm/s]")
+                    ylim([0 max(runPar)*2])
+                    yyaxis right
+                    plot(tFrecs,freq,ephysLineType,'linewidth',ephysLineWith)
                     ylabel("Ephys [Hz]")
-                    ylim([0 max(runPar)])
+                    ylim([0 max(freq)*2])
                     if autotitle
                         title(['Filtered Data: Stm: ' num2str(obj.stims(si).code) ...
                             ' Tri: ' num2str(si) ...
@@ -737,11 +743,11 @@ classdef CrabolaEphysRec
                         yyaxis left
                         plot(tFrecs,diffFrecs,ephysLineType,'linewidth',ephysLineWith)
                         ylabel("Run [cm/s²]")
-                        ylim([-max(diffFrecs)*1.5 max(diffFrecs)*1.5])
+                        ylim([-max(diffRunPar)*1.5 max(diffRunPar)*1.5])
                         yyaxis right
                         plot(tRun,diffRunPar,runLineType,'linewidth',runLineWidth)
                         ylabel("Ephys [dHz]")
-                        ylim([-max(diffRunPar)*1.5 max(diffRunPar)*1.5])
+                        ylim([-max(diffFrecs)*1.5 max(diffFrecs)*1.5])
                         xlabel('t [s]')
                         if autotitle
                             title(['Filtered Data: Stm: ' num2str(obj.stims(si).code) ...
@@ -795,13 +801,13 @@ classdef CrabolaEphysRec
                 if plotData
                     subplot(nXSP,kSP,1+(nSP*kSP*(i)))
                     yyaxis left
-                    plot(allData(:,1),allData(:,3),ephysLineType,'linewidth',ephysLineWith)
+                    plot(allData(:,1),allData(:,2),ephysLineType,'linewidth',ephysLineWith)
                     ylabel("Run [cm/s]")
-                    ylim([0 max(allData(:,3))])
+                    ylim([0 max(allData(:,2))*2])
                     yyaxis right
-                    plot(allData(:,1),allData(:,2),runLineType,'linewidth',runLineWidth)
+                    plot(allData(:,1),allData(:,3),runLineType,'linewidth',runLineWidth)
                     ylabel("Ephys [Hz]")
-                    ylim([0 max(allData(:,2))])
+                    ylim([0 max(allData(:,3))*2])
                     if autotitle
                         title('All stim filtered Data');
                     end
@@ -924,6 +930,7 @@ classdef CrabolaEphysRec
             ballSpan = 5;
             method = 'moving';
             binSize = 50;
+            xlimi = [];
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'condition'
@@ -950,20 +957,43 @@ classdef CrabolaEphysRec
                         binSize = varargin{arg+1};
                     case 'trials'
                         stimIND = varargin{arg+1};
+                    case 'xlimit'
+                        xlimi = varargin{arg+1};
                 end
             end
             
             if isempty(stimIND)
                 stimIND = obj.getStimIndex(stimCode, 'condition', condition,...
                     'screens', screens);
+            else
+                if any(diff([obj.stims(stimIND).code]))
+                    warning('los estimulos seleccionados no son del mismo codigo')
+                end
+                if any(diff([obj.stims(stimIND).running]))
+                    warning('los estimulos seleccionados no son de la misma condicion')
+                end
+                screens = [obj.stims(stimIND).screen];
+                if isa(screens,'string')
+                    screens = convertStringsToChars(screens);
+                end
+                if length(unique(screens))>1
+                    warning('los estimulos seleccionados no son de la misma pantalla')
+                end
             end
             
             means = obj.ball.getStimsMean(stimIND,'smooth', useSmooth,...
                 'span', ballSpan, 'smoothmethod', method, 'binsize',binSize);
-            [meansFreq, tFreq] = obj.neurons(cluster).getStimsMean(stimIND,binSize,...
-                'smoothmethod',method,'spanephys',ephysSpan,'usesmooth',useSmooth,...
-                'binsize',50);
-            means.meansFreq = meansFreq;
+            
+            if isempty(xlimi)
+                xlimit = [means.time(1) means.time(end)];
+            else
+                xlimit = xlimi;
+            end
+            
+            [meansFreq, tFreq] = obj.neurons(cluster).getStimsMean(stimIND,...
+                'binsize',binSize,'smoothmethod',method,'spanephys',ephysSpan,...
+                'usesmooth',useSmooth,'xlimit',xlimit);
+            means.freq = meansFreq;
             means.n = length(stimIND);
             
             if means.time(1) < tFreq(1)
@@ -978,7 +1008,7 @@ classdef CrabolaEphysRec
                 end
             elseif means.time(1) > tFreq(1)
                 [~,minI] = nearestValue(tFreq,means.time(1));
-                means.meansFreq = means.meansFreq(:,minI:end);
+                means.freq = means.freq(:,minI:end);
                 tFreq = tFreq(minI:end);
             end
             if means.time(end) > tFreq(end)
@@ -994,7 +1024,7 @@ classdef CrabolaEphysRec
             elseif means.time(end) < tFreq(end)
                 [~,maxI] = nearestValue(tFreq,means.time(end));
                 if maxI < lenght(tFreq)
-                    means.meansFreq = means.meansFreq(1:maxI);
+                    means.freq = means.freq(1:maxI);
                     tFreq = tFreq(1:maxI);
                 end
             end
@@ -1141,7 +1171,7 @@ classdef CrabolaEphysRec
                 subplot(2,1,1);  hold on; title('ball');
                 stimIND = obj.getStimIndex(stim, 'condition', 'ball');
                 obj.neurons(n).plotPSH(stimIND, [2, 5], 100, 'rasters', addRasters, 'pshColor', ballColor, 'relativesize', rasterSize, 'smoothspan', 10, 'smoothmethod', 'lowess')
-                ylim([0 topFreq])
+                ylim([0 topFreq*2])
                 topLimit = max(ylim);
                 addPSHDecorations(stim, 3.4, topLimit, 'stimunderplot', addRasters, 'heigth', stimHeigth)
                 subplot(2,1,2);  hold on; title('air');
@@ -1250,7 +1280,7 @@ classdef CrabolaEphysRec
             
             condition = 'ball';
             binSize = 50;%ms
-            durations = [2 6];
+            xlimit = [];
             ephysSpan = 5;
             ballSpan = 5;
             smoothMethod = 'moving';
@@ -1279,12 +1309,23 @@ classdef CrabolaEphysRec
                         error(['invalid optional argument: ' varargin{arg}])
                 end
             end
-            nBins = round((durations(2)+durations(1))*(1000/binSize));
-            neu =  obj.neurons(clu);
-            if isempty(stimIND)
-                stimIND = obj.getStimIndex(stim, 'condition', condition);
-            end
+           
             for i = 1:length(stimIND)
+                if isempty(xlimit)
+                    durations = [0 obj.stims(stimIND(i)).finish-obj.stims(stimIND(i)).start];
+                elseif length(xlimit) == 1 && all(xlimit>0)
+                    durations = [0 xlimit];
+                elseif length(xlimit) == 1 && all(xlimit<0)
+                    durations = [xlimit obj.stims.finish-obj.stims.start];
+                else
+                    durations = xlimit;
+                end
+                nBins = round((durations(2)+durations(1))*(1000/binSize));
+                neu =  obj.neurons(clu);
+                if isempty(stimIND)
+                    stimIND = obj.getStimIndex(stim, 'condition', condition);
+                end
+                
                 [raster, index, stimList] = neu.getRasters(stim, 'stimindex', stimIND(i), 'durations', durations);
                 [freq, t] = neu.getPSH(raster, index, [-durations(1) durations(2)], nBins, 'smoothspan', ephysSpan, 'smoothmethod', smoothMethod);
                 if ~isempty(freq)
@@ -1364,6 +1405,11 @@ classdef CrabolaEphysRec
             end
             est.EdgeColor = 'none';
             est.FaceAlpha = alpha;
+        end
+        
+        function [reg,newTime] = interpolateStimReg(obj,index,dt)
+            newTime = 0:dt:obj.stims(index).reg(end,2);
+            reg = interp1(obj.stims(index).reg(:,2), obj.stims(index).reg(:,1), newTime);
         end
         
     end

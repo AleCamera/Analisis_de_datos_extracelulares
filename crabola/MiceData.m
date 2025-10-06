@@ -36,6 +36,7 @@ classdef MiceData
             useSmooth = false;
             span = 5;
             method = 'moving'; 
+            gaussianAlpha = 2.5;
             
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
@@ -45,6 +46,8 @@ classdef MiceData
                         span = varargin{arg+1};
                     case 'smoothmethod'
                         method = varargin{arg+1};
+                    case 'gaussianalpha'
+                        gaussianAlpha = varargin{arg+1};
                     otherwise
                         error(['invalid optional argument: ' varargin{arg}])
                 end
@@ -74,11 +77,20 @@ classdef MiceData
                     % El viejo iba de 0-180 >0 y 0-180<0, ahora de 0 a 360.
                     dir = angTo360(dir);
                     if useSmooth
-                        vTras = smooth(vTras, span, method);
-                        vRot = smooth(vRot, span, method);
-                        %dir = smooth(dir, span, method);
-                        vX1 = smooth(vX1, span, method);
-                        vX2 = smooth(vX2, span, method);
+                         if strcmp('gaussian',method)
+                            w1 = gausswin(span, gaussianAlpha);
+                            w1 = w1/sum(w1);
+                            vTras = filter(w1, 1, vTras);
+                            vRot = filter(w1, 1, vRot);
+                            vX1 = filter(w1, 1, vX1);
+                            vX2 = filter(w1, 1, vX2);
+                         else
+                            vTras = smooth(vTras, span, method);
+                            vRot = smooth(vRot, span, method);
+                            %dir = smooth(dir, span, method);
+                            vX1 = smooth(vX1, span, method);
+                            vX2 = smooth(vX2, span, method);
+                         end
                     end
                         
                     intpRuns(nr).vTras = vTras;
@@ -115,9 +127,9 @@ classdef MiceData
                 l(i) = length(runs(i).time);
             end
             
-            minL = min(l);
-            means.time = runs(1).time-10;
-           n = length(runs);
+            [minL,indexMinL] = min(l);
+            means.time = runs(indexMinL).time-10;
+            n = length(runs);
             vTras = zeros(length(runs),minL);
             vRot = zeros(length(runs),minL);
             dirComp = zeros(length(runs),minL);
