@@ -1294,7 +1294,7 @@ classdef CrabolaEphysRec
                     case 'binsize'
                         binSize = varargin{arg+1};
                     case 'durations'
-                        durations = varargin{arg+1};
+                        xlimit = varargin{arg+1};
                     case 'spanephys'
                         ephysSpan = varargin{arg+1};
                     case 'smoothmethod'
@@ -1326,7 +1326,7 @@ classdef CrabolaEphysRec
                     stimIND = obj.getStimIndex(stim, 'condition', condition);
                 end
                 
-                [raster, index, stimList] = neu.getRasters(stim, 'stimindex', stimIND(i), 'durations', durations);
+                [raster, index, ~] = neu.getRasters(stim, 'stimindex', stimIND(i), 'durations', durations);
                 [freq, t] = neu.getPSH(raster, index, [-durations(1) durations(2)], nBins, 'smoothspan', ephysSpan, 'smoothmethod', smoothMethod);
                 if ~isempty(freq)
                     fRates(:,i)  = freq;
@@ -1346,8 +1346,9 @@ classdef CrabolaEphysRec
                 mixData.spontFreq.general = [];
                 mixData.airIND = [];
                 mixData.ballIND = [];
-                mixData.ID = []
+                mixData.ID = [];
                 mixData.clu = [];
+                mixData.Rasters = [];
             else
                 mixData.fRates = fRates;
                 mixData.t_ephys = t;
@@ -1358,6 +1359,7 @@ classdef CrabolaEphysRec
                 mixData.ballIND = obj.getStimIndex(unique([obj.stims.code]), 'condition', 'ball');
                 mixData.ID = str2double(obj.crabID);
                 mixData.clu = clu;
+                mixData.Rasters = [raster index];
             end
         end
         
