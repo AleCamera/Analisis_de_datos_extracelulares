@@ -24,8 +24,15 @@ if nargin < 1,
   error('Incorrect number of parameters (type ''help <a href="matlab:help minmax">minmax</a>'' for details).');
 end
 
-for k = 1:length(varargin),
-	v = varargin{k};
-	[m(k,1),i(k,1)] = min(v(:));
-	[m(k,2),i(k,2)] = max(v(:));
+for k = 1:length(varargin)
+	v = varargin{k,:};
+    if isempty(v)
+        m(k,1) = 0;
+        i(k,1) = 0;
+        m(k,2) = 0;
+        i(k,2) = 0;
+    else
+        [m(k,1),i(k,1)] = min(v(:));
+        [m(k,2),i(k,2)] = max(v(:));
+    end
 end
