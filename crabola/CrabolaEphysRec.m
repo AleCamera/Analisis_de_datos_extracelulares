@@ -24,10 +24,17 @@ classdef CrabolaEphysRec
             % frecuencia de sampleo a la que cargar las neuronas
             sf = 30000;
             saveFile = false;
+            times = [5 5 5 5];
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'samplefreq'
                         sf = varargin{arg+1};
+                    case 'times'
+                        if all(size(times) == [1,4])
+                            times = varargin{arg+1};
+                        else
+                            error('bad times format. Use [s s s s]')
+                        end
                     otherwise
                         error([varargin{arg} 'is not a valid argument'])
                 end
@@ -237,6 +244,7 @@ classdef CrabolaEphysRec
             %               Cluster:  Stim:  Trial:  Screen:  Runing:  Nº Spikes:  Date: 
             % 'noephys'     no plotea la respuesta fisiologica
             % 'spoffset'    elige desde que sublot comenzar a graficar
+            % 'croscorr'    calculate and show crosscorrelation as numbers
 
             condition = 'all';
             xlimit = [-10, 15];
@@ -263,6 +271,8 @@ classdef CrabolaEphysRec
             ephysLineWith = 1;
             ephysLineType = '-';
             runLineType = '-';
+            crosscorr = 0;
+            windowCrosCorr = 6;
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
                     case 'condition'
@@ -323,6 +333,8 @@ classdef CrabolaEphysRec
                         ephysLineWith = varargin{arg+1};
                     case 'runlinetype'
                         runLineType = varargin{arg+1};
+                    case 'crosscorr'
+                        crosscorr = varargin{arg+1};
                     otherwise
                         error(['invalid optional argument: ' varargin{arg}])
                 end
@@ -385,7 +397,6 @@ classdef CrabolaEphysRec
                 end
                 if lTopLimit < max(ylim)
                     lTopLimit = max(ylim);
-                    
                 end
                 if ns == round(length(stimIND)/2)
                     ylabel(behLabel);
@@ -418,6 +429,7 @@ classdef CrabolaEphysRec
                     xlabel('time (s)')
                 end
                 pool = {'FALSE', 'TRUE'};
+                
                 if autotitle
                     title(['Cluster: ' num2str(cluster) ...
                            ' Stim: ' num2str(obj.stims(stimIND(ns)).code) ...
@@ -427,6 +439,19 @@ classdef CrabolaEphysRec
                            ' Nº Spikes: ' num2str(length(raster)) ...
                            ' Date: ' obj.date ...
                            ' ID: ' num2str(obj.crabID)]);
+                end
+                if crosscorr
+                    [xcf, lags, ~] = obj.crosscorr(runPar,freq,'window',windowCrosCorr,'binsize',binSize);
+                    [maxXcf, maxXcfInd] = max(xcf);
+                    [minXcf, minXcfInd] = min(xcf);
+                    if abs(maxXcf) < abs(minXcf)
+                       maxXcf = minXcf;
+                       maxXcfInd = minXcfInd;
+                    end
+                    tMaxXcf = lags(maxXcfInd)*binSize/1000;
+                    disp(['Maxcorr=' num2str(maxXcf) ' t=' num2str(tMaxXcf)]);
+                    %annotation('textbox', [0.2, 0.8, 0.1, 0.1], 'String', ['Maxcorr=' num2str(maxXcf) ' t=' num2str(tMaxXcf)],'FitBoxToText','on')
+                    text(0,max(rTopLimit,lTopLimit),['Maxcorr=' num2str(maxXcf) ' t=' num2str(tMaxXcf)])
                 end
             end
             
@@ -588,8 +613,6 @@ classdef CrabolaEphysRec
                 xlimit = xlimi;
             end
             
-            
-            
             if isa(makeFig,'matlab.ui.Figure')
                 fig = makeFig;
             elseif makeFig
@@ -712,7 +735,7 @@ classdef CrabolaEphysRec
                 if maxXcf<0
                    ylim([maxXcf*1.5 -maxXcf*1.5])
                 else
-                    ylim([-maxXcf*1.5 maxXcf*1.5])
+                   ylim([-maxXcf*1.5 maxXcf*1.5])
                 end
                 
                 tMaxXcf = lags(maxXcfInd)*binSize/1000;
@@ -1023,7 +1046,7 @@ classdef CrabolaEphysRec
                 end
             elseif means.time(end) < tFreq(end)
                 [~,maxI] = nearestValue(tFreq,means.time(end));
-                if maxI < lenght(tFreq)
+                if maxI < length(tFreq)
                     means.freq = means.freq(1:maxI);
                     tFreq = tFreq(1:maxI);
                 end
@@ -1273,9 +1296,11 @@ classdef CrabolaEphysRec
             %
             % 'smoothmethod' --> metodo usado para el suavizado
             %
-            % 'smoothball'    --> opcion de suavizar las corridas
+            % 'smoothball'   --> opcion de suavizar las corridas
             %
-            % 'stimind'       --> reemplaza  a stim. Fuerza los indices a
+            % 'smoothepys'   --> opcion de suavisar epys
+            %
+            % 'stimind'      --> reemplaza  a stim. Fuerza los indices a
             %                       exportar
             
             condition = 'ball';
@@ -1286,6 +1311,7 @@ classdef CrabolaEphysRec
             smoothMethod = 'moving';
             smoothBallMethod = 'moving';
             smoothBall = false;
+            smoothEpys = true;
             stimIND = [];
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
@@ -1303,6 +1329,8 @@ classdef CrabolaEphysRec
                         ballSpan = varargin{arg+1};
                     case 'smoothball'
                         smoothBall = varargin{arg+1};
+                    case 'smoothepys'
+                        smoothEpys = varargin{arg+1};
                     case 'stimind'
                         stimIND = varargin{arg+1};
                     otherwise
@@ -1327,7 +1355,7 @@ classdef CrabolaEphysRec
                 end
                 
                 [raster, index, ~] = neu.getRasters(stim, 'stimindex', stimIND(i), 'durations', durations);
-                [freq, t] = neu.getPSH(raster, index, [-durations(1) durations(2)], nBins, 'smoothspan', ephysSpan, 'smoothmethod', smoothMethod);
+                [freq, t] = neu.getPSH(raster, index, [-durations(1) durations(2)], nBins, 'smoothspan', ephysSpan, 'smoothmethod', smoothMethod,'usesmooth',smoothEpys);
                 if ~isempty(freq)
                     fRates(:,i)  = freq;
                 else
@@ -1357,7 +1385,13 @@ classdef CrabolaEphysRec
                 mixData.spontFreq.general = obj.neurons(clu).getSpontaneousFreqs(20, stim, 'StimIndex', 1:length(obj.stims));
                 mixData.airIND = obj.getStimIndex(unique([obj.stims.code]), 'condition', 'air');
                 mixData.ballIND = obj.getStimIndex(unique([obj.stims.code]), 'condition', 'ball');
-                mixData.ID = str2double(obj.crabID);
+                if isa(obj.crabID,'double')
+                    mixData.ID = obj.crabID;
+                elseif isa(obj.crabID,'string') || isa(obj.crabID,'char')
+                    mixData.ID = str2double(obj.crabID);
+                else
+                    error('crabID data type not compatible')
+                end
                 mixData.clu = clu;
                 mixData.Rasters = [raster index];
             end

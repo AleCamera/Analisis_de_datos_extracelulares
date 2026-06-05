@@ -1,7 +1,7 @@
 function md = loadBallData(path, varargin)
 
     %Factor de converción de unidades de mouse a cm
-    %convK = 0.00661;
+    % convK = 0.00661; % valor original
     % ver script de calibracion para correcciones
     convK = [0.006566 0.006696 0.005542 0.005551];
 

@@ -263,7 +263,7 @@ classdef Neuron
             t = (bounds(1):(bounds(2) - bounds(1))/(nBins):bounds(2))';
             t = t(2:end);
             if isempty(freq)
-                freq = zeros(1,length(t));
+                freq = zeros(length(t),1);
             end
         end
         

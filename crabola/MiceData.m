@@ -37,6 +37,7 @@ classdef MiceData
             span = 5;
             method = 'moving'; 
             gaussianAlpha = 2.5;
+            deg = 3;
             
             for arg = 1:2:length(varargin)
                 switch lower(varargin{arg})
@@ -48,6 +49,8 @@ classdef MiceData
                         method = varargin{arg+1};
                     case 'gaussianalpha'
                         gaussianAlpha = varargin{arg+1};
+                    case 'sgolaydeg'
+                        deg = varargin{arg+1};
                     otherwise
                         error(['invalid optional argument: ' varargin{arg}])
                 end
@@ -84,10 +87,14 @@ classdef MiceData
                             vRot = filter(w1, 1, vRot);
                             vX1 = filter(w1, 1, vX1);
                             vX2 = filter(w1, 1, vX2);
+                         elseif strcmp('sgolay',method)
+                            vTras = smooth(vTras, span, method,deg);
+                            vRot = smooth(vRot, span, method,deg);
+                            vX1 = smooth(vX1, span, method,deg);
+                            vX2 = smooth(vX2, span, method,deg);
                          else
                             vTras = smooth(vTras, span, method);
                             vRot = smooth(vRot, span, method);
-                            %dir = smooth(dir, span, method);
                             vX1 = smooth(vX1, span, method);
                             vX2 = smooth(vX2, span, method);
                          end
