@@ -8,7 +8,7 @@ classdef VideoData < handle
         
         preStimTime         double = 5.0 % Tiempo en segundos antes del estímulo (ej: 5.0s)
         clusterDefecto      double = 1   % Cluster por defecto si no se especifica
-        offsetRun       double = 0
+        offsetRun           double = 0
         
         % Gestión de fragmentos de video
         VideosInfo          table     % Tabla con Nombres de archivo, Duraciones y Offsets globales
@@ -115,24 +115,11 @@ classdef VideoData < handle
             if idxTrial < 1 || idxTrial > height(obj.TablaMarcas)
                 error('Índice de Trial fuera de los límites de la TablaMarcas.');
             end
+                      
+            nombreArchivo = obj.TablaMarcas.Archivo{idxTrial};
             
-            % 1. Tiempos globales y locales del video
-            tInicioGlobal = double(obj.TablaMarcas.Video_Start(idxTrial));
-            tFinGlobal = double(obj.TablaMarcas.Video_Finish(idxTrial));
-            
-            idxVideoReal = 1;
-            for i = height(obj.VideosInfo):-1:1
-                if tInicioGlobal >= obj.VideosInfo.OffsetGlobal(i)
-                    idxVideoReal = i;
-                    break;
-                end
-            end
-            
-            nombreArchivo = obj.VideosInfo.Archivo(idxVideoReal);
-            offsetVideo = double(obj.VideosInfo.OffsetGlobal(idxVideoReal));
-            
-            tInicioLocal = tInicioGlobal - offsetVideo;
-            tFinLocal = tFinGlobal - offsetVideo;
+            tInicioLocal = double(obj.TablaMarcas.Video_Start(idxTrial));
+            tFinLocal = double(obj.TablaMarcas.Video_Finish(idxTrial));
             if tInicioLocal < 0, tInicioLocal = 0.0; end
             
             rutaVideoAbs = fullfile(obj.RutaCarpeta, char(nombreArchivo));
@@ -225,8 +212,10 @@ classdef VideoData < handle
             vidObj = VideoReader(rutaVideo);
             vidObj.CurrentTime = tInicio;
             
+            [~, fileName, fileExt] = fileparts(rutaVideo);
+            
             % Crear figura interactiva
-            hFig = figure('Name', sprintf('Curaduría Ephys/Video - Trial #%d (Cluster: %d)', numeroTrial, clu), ...
+            hFig = figure('Name', sprintf('%s%s - Desde: %.2f Hasta %.2f',fileName, fileExt, tInicio,tFin), ...
                           'NumberTitle', 'off', 'MenuBar', 'none', 'ToolBar', 'none', ...
                           'Position', [200, 50, 850, 780], 'KeyPressFcn', @obj.cb_teclado);
                       
@@ -237,6 +226,12 @@ classdef VideoData < handle
             % Eje Inferior: Datos Biológicos / Comportamiento
             hAxGrafico = axes('Parent', hFig, 'Position', [0.1, 0.08, 0.78, 0.24]);
             hCursor = [];
+            
+            fixedStringTitle = sprintf('Fecha: %s | Crab ID %1.0f | Trial %2.0f | Codigo: %1.0f', ...
+                       string(obj.crabData.date),...
+                       obj.crabData.crabID,...
+                       numeroTrial,...
+                       obj.crabData.stims(numeroTrial).code);
             
             % Graficar siempre que existan datos válidos en la estructura
             if datosGrafico.existe && ~isempty(datosGrafico.t_ball)
@@ -251,7 +246,7 @@ classdef VideoData < handle
                 % --- EJE DERECHO: FIRING RATE (Electrofisiología) ---
                 yyaxis(hAxGrafico, 'right');
                 plot(hAxGrafico, datosGrafico.t_ephys, datosGrafico.fRates, 'LineWidth', 1.2, 'Color', [0.85, 0.33, 0.1]);
-                
+
                 % --- Ploteo el estimulo
 %                 if isfield(obj.crabData.stims,'reg')
 %                     limits = [min(obj.crabData.stims(numeroTrial).reg(:,2)) max(obj.crabData.stims(numeroTrial).reg(:,2))+1]
@@ -259,15 +254,19 @@ classdef VideoData < handle
 %                             obj.crabData.stims(numeroTrial).reg(:,2),...
 %                             limits)
 %                 end
+
                 % Si clu == 1, le damos un toque estético al eje derecho para indicar que está vacío
                 if clu == 1
-                    ylabel(hAxGrafico, 'Frecuencia Neuronal (Sin Cluster / Cero)');
+                    ylabel(hAxGrafico, '(Sin Cluster)');
                     set(hAxGrafico, 'YColor', [0.6 0.6 0.6]);
                 else
                     ylabel(hAxGrafico, 'Frecuencia Neuronal fRates (Hz)');
                     set(hAxGrafico, 'YColor', [0.85, 0.33, 0.1]);
+                    fixedStringTitle = sprintf('%s | Cluster %1.0f', ...
+                                        fixedStringTitle,...
+                                        clu);
                 end
-                
+
                 % Límites del eje X basados estrictamente en el ephys devuelto
                 minX = min([min(datosGrafico.t_ball), min(datosGrafico.t_ephys)]);
                 maxX = max([max(datosGrafico.t_ball), max(datosGrafico.t_ephys)]);
@@ -291,6 +290,8 @@ classdef VideoData < handle
                 set(hAxGrafico, 'XTick', [], 'YTick', []);
             end
             
+            title(fixedStringTitle)
+            
             % Persistencia en la appdata de la figura
             setappdata(hFig, 'vidObj', vidObj);
             setappdata(hFig, 'tInicio', tInicio);
@@ -299,7 +300,7 @@ classdef VideoData < handle
             setappdata(hFig, 'reproduciendo', true);
             setappdata(hFig, 'hCursor', hCursor);
             setappdata(hFig, 'preStimTime', datosGrafico.preStimTime);
-            
+
             % Bucle Principal de Renderizado Nativo
             while ishandle(hFig)
                 reproduciendo = getappdata(hFig, 'reproduciendo');
@@ -311,11 +312,12 @@ classdef VideoData < handle
                 tActualGrafico = -datosGrafico.preStimTime + deltaVideo;
                 
                 % Título superior interactivo
-                strTitle = sprintf('Trial %d | %s | Vel: x%.1f | Tiempo Ephys: %.2fs', ...
-                                   numeroTrial, obj.obtenerStatusStr(reproduciendo, tActualVideo, tFin), velActual, tActualGrafico);
+                strTitle = sprintf('%s | Vel: x%.1f | Tiempo Ephys: %.2fs | Tiempo video: %.2f', ...
+                                   obj.obtenerStatusStr(reproduciendo, tActualVideo, tFin),...
+                                   velActual,...
+                                   tActualGrafico,...
+                                   tActualVideo);
                 if ishandle(hFig)
-                    title(hAxVideo, strTitle, 'FontSize', 11, 'FontWeight', 'bold');
-                    
                     % Actualizar posición del marcador vertical
                     if ishandle(hCursor)
                         set(hCursor, 'XData', [tActualGrafico, tActualGrafico]);
@@ -333,6 +335,7 @@ classdef VideoData < handle
                         frame = readFrame(vidObj);
                         if ~ishandle(hFig), break; end
                         imshow(frame, 'Parent', hAxVideo);
+                        title(hAxVideo, strTitle, 'FontSize', 11, 'FontWeight', 'bold');
                         drawnow limitrate;
                     else
                         setappdata(hFig, 'reproduciendo', false);
@@ -499,7 +502,7 @@ classdef VideoData < handle
             vidObj = VideoReader(rutaVideo);
             vidObj.CurrentTime = tInicio;
             
-            hFig = figure('Name', sprintf('MATLAB Video Player - Trial #%d', numeroTrial), ...
+            hFig = figure('Name', sprintf('Reproduciendo %s - Trial #%d',  numeroTrial), ...
                           'NumberTitle', 'off', 'MenuBar', 'none', 'ToolBar', 'none', ...
                           'KeyPressFcn', @obj.cb_teclado); % <--- Apunta correctamente a cb_teclado
             hAx = axes('Parent', hFig);
@@ -556,9 +559,9 @@ classdef VideoData < handle
             if tCur >= tFin
                 str = '🛑 TERMINADO (Fin de Trial)';
             elseif repro
-                str = '▶️ REPRODUCIENDO';
+                str = '▶';
             else
-                str = '⏸️ PAUSADO';
+                str = '⏸';
             end
         end
         
